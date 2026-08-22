@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
+import checkoutRoutes from './routes/checkout.routes.js';
 
 // Konfigurasi dotenv agar mampu membaca file .env
 dotenv.config();
@@ -9,6 +10,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware untuk mempermudah membaca body HTTP berformat JSON
 app.use(express.json());
+
+app.use('/api', checkoutRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({
