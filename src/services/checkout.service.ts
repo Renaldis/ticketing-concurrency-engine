@@ -1,5 +1,6 @@
 import { Order, Prisma, TicketCategory } from '@prisma/client';
 import prisma from '../config/prisma.js';
+import { LockManager } from '../utils/lock-manager.js';
 
 // Definisikan tipe untuk response sukses checkout
 interface CheckoutResponse {
@@ -22,77 +23,86 @@ export class CheckoutService {
     ticketCategoryId: string,
     quantity: number,
   ): Promise<CheckoutResponse> {
-    // Jalankan operasi di dalam Interactive Transaction (ACID)
-    return await prisma.$transaction(async (tx) => {
-      // 1. Kunci baris data dengan Pessimistic Lock (SELECT FOR UPDATE)
-      const categories = await tx.$queryRaw<TicketCategory[]>`
-            SELECT id, "eventId", name, price, "totalCapacity", "remainingCapacity"
-            FROM ticket_categories
-            WHERE id = ${ticketCategoryId}
-            LIMIT 1
-            FOR UPDATE
-            `;
+    // LANGKAH 1: Dapatkan lock dari Redis untuk kategori tiket ini
+    // Kita berikan TTL 3000ms (3 detik) - cukup untuk memproses transaksi SQL
+    // Mencoba 15 kali percobaan dengan jeda 50ms (total ~750ms waktu tunggu)
+    const lockToken = await LockManager.acquireLockWithRetry(ticketCategoryId, 3000, 15, 50);
 
-      const category = categories[0];
+    if (!lockToken) {
+      throw new Error('Server is busy processing checkouts. Please try again in a moment.');
+    }
 
-      if (!category) {
-        throw new Error('Ticket category not found');
-      }
+    try {
+      // LANGKAH 2: Jalankan operasi database di dalam Interactive Transaction (ACID)
+      // Karena kita sudah mengunci di Redis, query database di sini dijamin berurutan (sequential)
+      return await prisma.$transaction(async (tx) => {
+        // Kita tetap menggunakan query biasa di DB (tidak wajib FOR UPDATE lagi karena sudah dijaga Redis)
+        const category = await tx.ticketCategory.findUnique({
+          where: { id: ticketCategoryId },
+        });
 
-      // 2. Validasi stok sisa tiket
-      const currentRemaining = Number(category.remainingCapacity);
-      if (currentRemaining < quantity) {
-        throw new Error(`Insufficient tickets. Remaining: ${currentRemaining}`);
-      }
+        if (!category) {
+          throw new Error('Ticket category not found');
+        }
 
-      // 3. Kurangi stok tiket
-      const updatedCategory = await tx.ticketCategory.update({
-        where: { id: ticketCategoryId },
-        data: {
-          remainingCapacity: {
-            decrement: quantity,
-          },
-        },
-      });
+        // Validasi stok sisa tiket
+        const currentRemaining = Number(category.remainingCapacity);
+        if (currentRemaining < quantity) {
+          throw new Error(`Insufficient tickets. Remaining: ${currentRemaining}`);
+        }
 
-      // Ambil nilai harga dalam tipe Decimal bawaan Prisma
-      const price = category.price;
-      // Hitung total bayar menggunakan perkalian presisi Decimal
-      const totalAmount = new Prisma.Decimal(price).mul(quantity);
-
-      // 4. Buat record Order
-      const order = await tx.order.create({
-        data: {
-          userId,
-          eventId,
-          totalAmount,
-          status: 'PENDING',
-          orderItems: {
-            create: {
-              ticketCategoryId,
-              quantity,
-              price,
+        // Kurangi stok tiket
+        const updatedCategory = await tx.ticketCategory.update({
+          where: { id: ticketCategoryId },
+          data: {
+            remainingCapacity: {
+              decrement: quantity,
             },
           },
-        },
-        include: {
-          orderItems: true,
-        },
-      });
+        });
 
-      // 5. Buat record Transaction status PENDING
-      await tx.transaction.create({
-        data: {
-          orderId: order.id,
-          amount: totalAmount,
-          status: 'PENDING',
-        },
-      });
+        // Ambil nilai harga dalam tipe Decimal bawaan Prisma
+        const price = category.price;
+        // Hitung total bayar menggunakan perkalian presisi Decimal
+        const totalAmount = new Prisma.Decimal(price).mul(quantity);
 
-      return {
-        order,
-        ticketLeft: updatedCategory.remainingCapacity,
-      };
-    });
+        // Buat record Order
+        const order = await tx.order.create({
+          data: {
+            userId,
+            eventId,
+            totalAmount,
+            status: 'PENDING',
+            orderItems: {
+              create: {
+                ticketCategoryId,
+                quantity,
+                price,
+              },
+            },
+          },
+          include: {
+            orderItems: true,
+          },
+        });
+
+        // Buat record Transaction status PENDING
+        await tx.transaction.create({
+          data: {
+            orderId: order.id,
+            amount: totalAmount,
+            status: 'PENDING',
+          },
+        });
+
+        return {
+          order,
+          ticketLeft: updatedCategory.remainingCapacity,
+        };
+      });
+    } finally {
+      // LANGKAH 3: Lepaskan kunci Redis di blok 'finally' agar PASTI dilepas selesai transaksi
+      await LockManager.releaseLock(ticketCategoryId, lockToken);
+    }
   }
 }

@@ -24,6 +24,30 @@ export class LockManager {
   }
 
   /**
+   * Mencoba mendapatkan lock dengan mekanisme Retry (Spinlock)
+   * @param resourceName Nama resource
+   * @param ttlMs Masa aktif kunci dalam milidetik
+   * @param retries Jumlah percobaan maksimal
+   * @param delayMs Waktu jeda antar percobaan dalam milidetik
+   */
+  static async acquireLockWithRetry(
+    resourceName: string,
+    ttlMs: number,
+    retries = 10,
+    delayMs = 50,
+  ): Promise<string | null> {
+    for (let i = 0; i < retries; i++) {
+      const token = await this.acquireLock(resourceName, ttlMs);
+      if (token) {
+        return token; // Berhasil mengunci!
+      }
+      // Tunggu/delay sebelum mencoba lagi
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return null; // Gagal mendapatkan kunci setelah maksimal percobaan
+  }
+
+  /**
    * Melepaskan lock (Release Lock)
    * Menggunakan script LUA agar pengecekan token & penghapusan berjalan AMAN dan ATOMIK
    */
