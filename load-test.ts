@@ -10,19 +10,33 @@ if (!fs.existsSync(seedDataPath)) {
 
 const seedData = JSON.parse(fs.readFileSync(seedDataPath, 'utf-8'));
 
-// 1. ID otomatis di ambil dari hasil generate seed data dummy
-const USER_ID = seedData.userId;
 const EVENT_ID = seedData.eventId;
-const TICKET_CATEGORY_ID = seedData.ticketCategoryId; // Yang stoknya cuma 5
+const TICKET_CATEGORY_ID = seedData.ticketCategoryId; // VIP (Stock: 5)
+const BASE_URL = 'http://localhost:3001/api'; // Mengarah ke port 3001 sesuai .env
 
-const payload = JSON.stringify({
-  userId: USER_ID,
-  eventId: EVENT_ID,
-  ticketCategoryId: TICKET_CATEGORY_ID,
-  quantity: 1, // Masing-masing request membeli 1 tiket
-});
+async function getJwtToken(): Promise<string> {
+  console.log('Mendapatkan JWT Token dari server...');
+  const res = await fetch(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: 'buyer@example.com',
+      password: 'password123',
+    }),
+  });
+
+  const body: any = await res.json();
+  if (body.status !== 'success') {
+    throw new Error('Gagal mendapatkan authentication token: ' + body.message);
+  }
+
+  console.log('Koneksi Auth Sukses. Token JWT didapatkan!');
+  return body.data.token;
+}
 
 async function runLoadTest() {
+  const token = await getJwtToken();
+
   console.log('Memulai simulasi Flash Sale...');
   console.log(
     'Mengirim 100 request checkout secara bersamaan ke tiket kategori VIP (Sisa Stok: 5)...',
@@ -39,8 +53,13 @@ async function runLoadTest() {
           path: '/api/checkout',
           headers: {
             'content-type': 'application/json',
+            authorization: `Bearer ${token}`, // Suntikkan JWT Token di header request!
           },
-          body: payload,
+          body: JSON.stringify({
+            eventId: EVENT_ID,
+            ticketCategoryId: TICKET_CATEGORY_ID,
+            quantity: 1, // Masing-masing membeli 1 tiket
+          }), // payload body dibersihkan dari parameter userId!
         },
       ],
     },
@@ -55,7 +74,7 @@ async function runLoadTest() {
       console.log(`Request per Detik      : ${result.requests.average}`);
       console.log('=============================\n');
       console.log('Sekarang buka Prisma Studio / Query DB untuk melihat sisa tiket VIP.');
-      console.log('Jika Pessimistic Lock bekerja:');
+      console.log('Jika Pessimistic Lock / Redis Lock bekerja dengan JWT:');
       console.log('- remainingCapacity VIP harus tepat bernilai 0 (TIDAK BOLEH MINUS)');
       console.log('- Jumlah Record Order berstatus PENDING di DB harus tepat berjumlah 5');
     },
@@ -65,4 +84,4 @@ async function runLoadTest() {
   autocannon.track(instance);
 }
 
-runLoadTest();
+runLoadTest().catch((e) => console.error('Gagal menjalankan load test:', e.message));

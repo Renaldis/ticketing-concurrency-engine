@@ -1,32 +1,31 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { CheckoutService } from '../services/checkout.service';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { AppError } from '../utils/app-error';
 
 export class CheckoutController {
-  static async checkout(req: Request, res: Response): Promise<void> {
-    const { userId, eventId, ticketCategoryId, quantity } = req.body;
+  static async checkout(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    const { eventId, ticketCategoryId, quantity } = req.body;
 
     // Validasi input dasar
-    if (!userId || !eventId || !ticketCategoryId || !quantity || quantity <= 0) {
-      res.status(400).json({ error: 'Missing or invalid fields' });
-      return;
+    if (!userId) {
+      throw new AppError('User authentication failed', 401);
     }
 
-    try {
-      const result = await CheckoutService.executeCheckout(
-        userId,
-        eventId,
-        ticketCategoryId,
-        quantity,
-      );
-      res.status(201).json({
-        message: 'Checkout successful',
-        data: result,
-      });
-    } catch (error: any) {
-      console.error('[Checkout Controller Error]:', error.message);
-      res.status(400).json({
-        error: error.message || 'Verification or processing failed',
-      });
+    if (!eventId || !ticketCategoryId || !quantity || quantity <= 0) {
+      throw new AppError('Missing or invalid fields in request body', 400);
     }
+
+    const result = await CheckoutService.executeCheckout(
+      userId,
+      eventId,
+      ticketCategoryId,
+      quantity,
+    );
+    res.status(201).json({
+      message: 'Checkout successful',
+      data: result,
+    });
   }
 }
