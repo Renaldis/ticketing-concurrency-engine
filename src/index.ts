@@ -2,6 +2,9 @@ import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import checkoutRoutes from './routes/checkout.routes.js';
 
+// Nyalakan worker pemantau antrean BullMQ
+import './workers/order-expiration.worker.js';
+
 // Konfigurasi dotenv agar mampu membaca file .env
 dotenv.config();
 

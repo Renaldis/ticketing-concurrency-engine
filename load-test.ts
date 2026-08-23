@@ -1,9 +1,19 @@
 import autocannon from 'autocannon';
+import fs from 'fs';
+import path from 'path';
 
-// 1. Definisikan ID data dari database kamu (bisa dicontek dari Prisma Studio)
-const USER_ID = '68a5962b-24c2-48c0-9245-712bc5101f77';
-const EVENT_ID = '00836401-4aec-45b4-a00a-448c06eb5757';
-const TICKET_CATEGORY_ID = '05ddf395-4986-4e6f-9bd4-2111d0a6f239'; // Yang stoknya cuma 5
+const seedDataPath = path.join(process.cwd(), 'prisma', 'seed-data.json');
+if (!fs.existsSync(seedDataPath)) {
+  console.error('Error: lakukan "npx prisma db seed" terlebih dahulu untuk menggenerate data!');
+  process.exit(1);
+}
+
+const seedData = JSON.parse(fs.readFileSync(seedDataPath, 'utf-8'));
+
+// 1. ID otomatis di ambil dari hasil generate seed data dummy
+const USER_ID = seedData.userId;
+const EVENT_ID = seedData.eventId;
+const TICKET_CATEGORY_ID = seedData.ticketCategoryId; // Yang stoknya cuma 5
 
 const payload = JSON.stringify({
   userId: USER_ID,

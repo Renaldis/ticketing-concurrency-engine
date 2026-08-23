@@ -1,6 +1,7 @@
 import { Order, Prisma, TicketCategory } from '@prisma/client';
 import prisma from '../config/prisma.js';
 import { LockManager } from '../utils/lock-manager.js';
+import { orderExpirationQueue } from '../config/queue.js';
 
 // Definisikan tipe untuk response sukses checkout
 interface CheckoutResponse {
@@ -94,6 +95,14 @@ export class CheckoutService {
             status: 'PENDING',
           },
         });
+
+        // MASUKKAN PENUNDAAN PEKERJAAN (COUNTDOWN CANCEL) KE ANTRIAN BULLMQ
+        // Khusus pengujian, tiket kita beri waktu pending 2 menit (120000ms)
+        await orderExpirationQueue.add(
+          'cancel-order',
+          { orderId: order.id },
+          { delay: 120000 }, // Delay 120.000 milidetik (2 menit)
+        );
 
         return {
           order,

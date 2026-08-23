@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -59,6 +61,19 @@ async function main() {
   console.log(
     `Created ticket category: ${cat1Category.name} (Stock: ${cat1Category.totalCapacity})`,
   );
+
+  // SIMPAN ID BARU KE FILE JSON
+  const seedData = {
+    userId: user.id,
+    eventId: event.id,
+    ticketCategoryId: vipCategory.id,
+  };
+
+  fs.writeFileSync(
+    path.join(process.cwd(), 'prisma', 'seed-data.json'),
+    JSON.stringify(seedData, null, 2),
+  );
+  console.log('Successfully saved UUIDs to prisma/seed-data.json!');
 
   console.log('Seeding finished successfully!');
 }
