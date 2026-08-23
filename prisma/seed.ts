@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -15,11 +16,15 @@ async function main() {
   await prisma.event.deleteMany();
   await prisma.user.deleteMany();
 
+  const hashedPassword = await bcrypt.hash('password123', 10);
+
   // 2. Buat User dummy
   const user = await prisma.user.create({
     data: {
       email: 'buyer@example.com',
       name: 'Budi Pembeli',
+      password: hashedPassword, // Tambahkan kolom password
+      role: 'CUSTOMER', // Tambahkan kolom role
     },
   });
   console.log(`Created user: ${user.name} (${user.email})`);
