@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import checkoutRoutes from './routes/checkout.routes.js';
+import webhookRoutes from './routes/webhook.routes.js';
 
 // Nyalakan worker pemantau antrean BullMQ
 import './workers/order-expiration.worker.js';
@@ -15,6 +16,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 app.use('/api', checkoutRoutes);
+app.use('/api', webhookRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({
