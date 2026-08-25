@@ -42,6 +42,7 @@ model Event {
   description String?
   location String
   date DateTime
+  imageUrl        String? 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ticketCategories TicketCategory[]

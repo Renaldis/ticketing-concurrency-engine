@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import checkoutRoutes from './routes/checkout.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import eventRoutes from './routes/event.routes.js';
 import cors from 'cors';
 
 // Nyalakan worker pemantau antrean BullMQ
@@ -27,6 +28,7 @@ app.use(express.json());
 app.use('/api', checkoutRoutes);
 app.use('/api', webhookRoutes);
 app.use('/api', authRoutes);
+app.use('/api', eventRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({
