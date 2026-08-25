@@ -1,15 +1,20 @@
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
+import cors from 'cors';
+import helmet from 'helmet';
+import fs from 'fs';
+import path from 'path';
+import YAML from 'yaml';
+import swaggerUi from 'swagger-ui-express';
+
 import checkoutRoutes from './routes/checkout.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import eventRoutes from './routes/event.routes.js';
-import cors from 'cors';
+import { errorHandler } from './middleware/error.middleware.js';
 
 // Nyalakan worker pemantau antrean BullMQ
 import './workers/order-expiration.worker.js';
-import helmet from 'helmet';
-import { errorHandler } from './middleware/error.middleware.js';
 
 // Konfigurasi dotenv agar mampu membaca file .env
 dotenv.config();
@@ -18,11 +23,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Pasang Middleware Global Keamanan & CORS
-app.use(helmet());
+// Matikan CSP bawaan helmet agar inline CSS/JS milik Swagger UI terload dengan sukses
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 app.use(cors());
 
 // Middleware untuk mempermudah membaca body HTTP berformat JSON
 app.use(express.json());
+
+// Load dan parse data API spesifikasi swagger.yaml
+const swaggerFile = fs.readFileSync(path.join(process.cwd(), 'swagger.yaml'), 'utf8');
+const swaggerDocument = YAML.parse(swaggerFile);
+
+// Daftarkan route Swagger UI di /api-docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Registrasi Route API
 app.use('/api', checkoutRoutes);
@@ -43,4 +58,5 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
+  console.log(`Swagger documentation is available at http://localhost:${PORT}/api-docs`);
 });

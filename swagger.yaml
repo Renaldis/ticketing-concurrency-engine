@@ -1,0 +1,461 @@
+openapi: 3.0.3
+info:
+  title: High-Concurrency Ticketing Engine API
+  description: |
+    API untuk sistem penjualan tiket konser berbasis antrean asinkron dan pencegahan overselling.
+    
+    ### Fitur Utama:
+    * **Authentication**: Login & Register akun pembeli (JWT).
+    * **Event & Ticket Catalog**: List & detail catalog event serta manajemen kategori tiket (dengan filter pagination).
+    * **Secure Checkout**: Pemesanan tiket dengan perlindungan Pessimistic Lock & Redis Distributed Lock untuk mencegah double-booking.
+    * **Payment Webhook**: Integrasi pembayaran tangguh dengan verifikasi tanda tangan HMAC.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001/api
+    description: Dev Server Local
+paths:
+  /auth/register:
+    post:
+      summary: Register Akun Pembeli Baru
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: password123
+                name:
+                  type: string
+                  example: Budi Test
+      responses:
+        "201":
+          description: User berhasil terdaftar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: User registered successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      role:
+                        type: string
+                        example: CUSTOMER
+        "400":
+          description: Validasi Zod gagal atau Email sudah digunakan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Email is already registered
+
+  /auth/login:
+    post:
+      summary: Login User & Dapatkan JWT Token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: buyer@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        "200":
+          description: Login berhasil, mengembalikan JWT Token untuk sesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        description: JWT Bearer Token
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+                          name:
+                            type: string
+                          role:
+                            type: string
+        "401":
+          description: Email atau password salah
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Invalid email or password
+
+  /events:
+    get:
+      summary: Menampilkan Daftar Event (Paginated)
+      tags:
+        - Event Catalog
+      parameters:
+        - name: page
+          in: query
+          description: Nomor halaman data
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Daftar event berhasil dimuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      events:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Event'
+                      pagination:
+                        type: object
+                        properties:
+                          totalCount:
+                            type: integer
+                          totalPages:
+                            type: integer
+                          currentPage:
+                            type: integer
+                          limit:
+                            type: integer
+
+    post:
+      summary: Mendaftarkan Event Baru + Unggah Poster Gambar (Admin-Only)
+      security:
+        - BearerAuth: []
+      tags:
+        - Event Catalog
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - title
+                - location
+                - date
+                - categories
+              properties:
+                title:
+                  type: string
+                  example: Java Jazz 2026
+                description:
+                  type: string
+                  example: <h1>Specatular Jazz Live!</h1>
+                location:
+                  type: string
+                  example: JIExpo Kemayoran
+                date:
+                  type: string
+                  format: date-time
+                  example: "2026-10-15T19:00:00.000Z"
+                categories:
+                  type: string
+                  description: Array Kategori Tiket dalam format JSON stringified
+                  example: '[{"name":"VIP","price":1500000,"capacity":50},{"name":"REGULAR","price":500000,"capacity":200}]'
+                image:
+                  type: string
+                  format: binary
+                  description: File poster berbentuk gambar JPEG/PNG/WEBP
+      responses:
+        "201":
+          description: Event berhasil dibuat beserta Kategori Tiketnya
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Event created successfully
+                  data:
+                    type: object
+                    properties:
+                      event:
+                        $ref: '#/components/schemas/Event'
+        "400":
+          description: Validasi field gagal
+        "401":
+          description: Unauthorized JWT Token hilang
+        "403":
+          description: Token tidak valid / kadaluarsa
+
+  /events/{id}:
+    get:
+      summary: Menampilkan Rincian 1 Event berdasarkan ID
+      tags:
+        - Event Catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Event (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail event berhasil ditemukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      event:
+                        $ref: '#/components/schemas/Event'
+        "404":
+          description: Event tidak ditemukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Event not found
+
+  /checkout:
+    post:
+      summary: Memesan Tiket Konser (Secure Queue and Locks)
+      security:
+        - BearerAuth: []
+      tags:
+        - Orders & Checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - eventId
+                - ticketCategoryId
+                - quantity
+              properties:
+                eventId:
+                  type: string
+                  format: uuid
+                  example: "7ff6ecff-bf4e-4bb7-a7bc-ab2ff97dc9a7"
+                ticketCategoryId:
+                  type: string
+                  format: uuid
+                  example: "9ae7321a-d1b5-4309-bcd0-740aa3a525f2"
+                quantity:
+                  type: integer
+                  minimum: 1
+                  example: 1
+      responses:
+        "201":
+          description: Checkout berhasil, Tiket dipesan sementara selama 15 menit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Checkout successful
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      userId:
+                        type: string
+                      eventId:
+                        type: string
+                      quantity:
+                        type: integer
+                      status:
+                        type: string
+                        example: PENDING
+                      totalPrice:
+                        type: string
+                      expiresAt:
+                        type: string
+                        format: date-time
+        "400":
+          description: Stok habis or order melebihi kriteria
+        "401":
+          description: Sesi checkout tidak sah (Unauthorized)
+
+  /webhook:
+    post:
+      summary: Memproses Konfirmasi Pembayaran Webhook (Stripe/Midtrans HMAC)
+      tags:
+        - Payment Webhooks
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          description: Kunci HMAC Signature untuk otentikasi webhook
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Pembayaran diproses dengan sukses (Idempotensi terjamin)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        "400":
+          description: Signature tidak cocok / Payload tidak valid
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        date:
+          type: string
+          format: date-time
+        imageUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        ticketCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketCategory'
+    TicketCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+        name:
+          type: string
+        price:
+          type: string
+        totalCapacity:
+          type: integer
+        remainingCapacity:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
