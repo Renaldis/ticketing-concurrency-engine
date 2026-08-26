@@ -26,8 +26,17 @@ async function testWebhook() {
 
   // 1. BUAT KASUS: CHECKOUT ORDER BARU (PENDING)
   console.log('\n[1/4] Mendaftarkan checkout tiket (Order PENDING)...');
+
+  // Login dulu untuk mendapatkan JWT Token
+  const loginRes = await fetch(`${API_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'buyer@example.com', password: 'password123' }),
+  });
+  const loginData: any = await loginRes.json();
+  const token = loginData.data?.token;
+
   const checkoutPayload = {
-    userId: seedData.userId,
     eventId: seedData.eventId,
     ticketCategoryId: seedData.ticketCategoryId,
     quantity: 1,
@@ -35,7 +44,10 @@ async function testWebhook() {
 
   const checkoutRes = await fetch(`${API_URL}/checkout`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(checkoutPayload),
   });
 

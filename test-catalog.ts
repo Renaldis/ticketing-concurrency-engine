@@ -28,18 +28,18 @@ async function runCatalogTest() {
   }
   console.log('');
 
-  // [Tes 3] Dapatkan JWT Token Terlebih Dahulu dengan Login
+  // [Tes 3] Dapatkan JWT Token Terlebih Dahulu dengan Login sebagai Admin
   console.log('[3/4] Melakukan login untuk mendapatkan otorisasi Admin...');
   let token = '';
   try {
     const loginRes = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'buyer@example.com', password: 'password123' }),
+      body: JSON.stringify({ email: 'admin@example.com', password: 'password123' }),
     });
     const loginData: any = await loginRes.json();
     token = loginData.data.token;
-    console.log('Login Sukses, Token JWT Disimpan!');
+    console.log('Login Sukses sebagai Admin, Token JWT Disimpan!');
   } catch (err: any) {
     console.error('Tes Gagal Login:', err.message);
     process.exit(1);
@@ -84,10 +84,31 @@ async function runCatalogTest() {
 
     if (data.status === 'success') {
       const newEventId = data.data.event.id;
-      console.log(`\n[Bonus Tes] Menampilkan detail Event Baru (ID: ${newEventId})...`);
+      console.log(`\n[Bonus Tes 1] Menampilkan detail Event Baru (ID: ${newEventId})...`);
       const getDetailRes = await fetch(`${BASE_URL}/events/${newEventId}`);
       const detailData = await getDetailRes.json();
       console.log('Response Detail Event:', JSON.stringify(detailData, null, 2));
+
+      console.log(`\n[Bonus Tes 2] Mengubah Data Event (PUT /events/${newEventId})...`);
+      const updateFormData = new FormData();
+      updateFormData.append('title', `Jakarta Rock Festival Updated ${Date.now()}`);
+      updateFormData.append('location', 'Stadion Madya GBK, Jakarta');
+
+      const updateRes = await fetch(`${BASE_URL}/events/${newEventId}`, {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${token}` },
+        body: updateFormData,
+      });
+      const updateData = await updateRes.json();
+      console.log('Response Update Event:', JSON.stringify(updateData, null, 2));
+
+      console.log(`\n[Bonus Tes 3] Menghapus Event (DELETE /events/${newEventId})...`);
+      const deleteRes = await fetch(`${BASE_URL}/events/${newEventId}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const deleteData = await deleteRes.json();
+      console.log('Response Delete Event:', JSON.stringify(deleteData, null, 2));
     }
   } catch (err: any) {
     console.error('Tes 4 Gagal:', err.message);

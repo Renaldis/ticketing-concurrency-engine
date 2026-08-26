@@ -29,6 +29,16 @@ async function main() {
   });
   console.log(`Created user: ${user.name} (${user.email})`);
 
+  const admin = await prisma.user.create({
+    data: {
+      email: 'admin@example.com',
+      name: 'Admin Mantap',
+      password: hashedPassword,
+      role: 'ADMIN',
+    },
+  });
+  console.log(`Created admin: ${admin.name} (${admin.email})`);
+
   // 3. Buat Event dummy
   const event = await prisma.event.create({
     data: {
