@@ -326,11 +326,20 @@ paths:
 
   /checkout:
     post:
-      summary: Memesan Tiket Konser (Secure Queue and Locks)
+      summary: Memesan Tiket Konser (Secure Queue, Locks, and Idempotency)
       security:
         - BearerAuth: []
       tags:
         - Orders & Checkout
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Key unik UUID untuk mencegah transaksi checkout ganda/duplicate
+          schema:
+            type: string
+            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
       requestBody:
         required: true
         content:
@@ -392,6 +401,8 @@ paths:
           description: Stok habis or order melebihi kriteria
         "401":
           description: Sesi checkout tidak sah (Unauthorized)
+        "409":
+          description: Duplicate request checkout sedang diproses (Conflict)
 
   /webhook:
     post:
