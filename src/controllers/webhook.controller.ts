@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import prisma from '../config/prisma';
+import prisma from '../config/prisma.js';
+import { asyncHandler } from '../utils/async-handler.js';
 
 export class WebhookController {
-  static async handlePaymentWebhook(req: Request, res: Response): Promise<void> {
+  handlePaymentWebhook = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const signature = req.headers['x-signature'] as string;
     const secret = process.env.WEBHOOK_SECRET;
 
@@ -36,8 +37,6 @@ export class WebhookController {
       const orderId = order_id;
       const transactionStatus = req.body.transaction_status;
 
-      // Petakan status Midtrans ke kolom Order & Transaction
-      // settlement/capture=PAID, deny/cancel/expire=CANCELLED
       let mappedStatus = '';
       if (
         transactionStatus === 'settlement' ||
@@ -53,7 +52,7 @@ export class WebhookController {
       }
 
       if (mappedStatus) {
-        await WebhookController.dbFinalizeOrder(res, orderId, mappedStatus);
+        await this.dbFinalizeOrder(res, orderId, mappedStatus);
       } else {
         res.status(200).json({ message: `Webhook status ${transactionStatus} ignored` });
       }
@@ -88,11 +87,10 @@ export class WebhookController {
       return;
     }
 
-    await WebhookController.dbFinalizeOrder(res, orderId, status);
-  }
+    await this.dbFinalizeOrder(res, orderId, status);
+  });
 
-  // Helper fungsi transaksi database untuk update status pesanan & pengembalian tiket
-  private static async dbFinalizeOrder(
+  private async dbFinalizeOrder(
     res: Response,
     orderId: string,
     status: string,
@@ -140,7 +138,6 @@ export class WebhookController {
             data: { status: 'FAILED' },
           });
 
-          // Rilis kembali tiket
           for (const item of order.orderItems) {
             await tx.ticketCategory.update({
               where: { id: item.ticketCategoryId },

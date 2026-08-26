@@ -11,7 +11,8 @@
     "test:webhook": "tsx test-webhook.ts",
     "test:idempotency": "tsx test-idempotency.ts",
     "test:catalog": "tsx test-catalog.ts",
-    "test:auth": "tsx test-auth.ts"
+    "test:auth": "tsx test-auth.ts",
+    "test:ratelimit": "tsx test-ratelimit.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

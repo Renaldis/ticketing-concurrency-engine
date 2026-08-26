@@ -1,25 +1,26 @@
 import { Response } from 'express';
-import { CheckoutService } from '../services/checkout.service';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { AppError } from '../utils/app-error';
-import { UserRepository } from '../repositories/user.repository';
-import { createMidtransSnapTransaction } from '../utils/midtrans';
+import { CheckoutService } from '../services/checkout.service.js';
+import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
+import { AppError } from '../utils/app-error.js';
+import { UserRepository } from '../repositories/user.repository.js';
+import { createMidtransSnapTransaction } from '../utils/midtrans.js';
+import { asyncHandler } from '../utils/async-handler.js';
 
 export class CheckoutController {
-  static async checkout(req: AuthenticatedRequest, res: Response): Promise<void> {
+  constructor(
+    private checkoutService: typeof CheckoutService = CheckoutService,
+    private userRepo: UserRepository = new UserRepository(),
+  ) {}
+
+  checkout = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const userId = req.user?.id;
     const { eventId, ticketCategoryId, quantity } = req.body;
 
-    // Validasi input dasar
     if (!userId) {
       throw new AppError('User authentication failed', 401);
     }
 
-    if (!eventId || !ticketCategoryId || !quantity || quantity <= 0) {
-      throw new AppError('Missing or invalid fields in request body', 400);
-    }
-
-    const result = await CheckoutService.executeCheckout(
+    const result = await this.checkoutService.executeCheckout(
       userId,
       eventId,
       ticketCategoryId,
@@ -27,8 +28,7 @@ export class CheckoutController {
     );
     const order = result.order;
 
-    const userRepo = new UserRepository();
-    const user = await userRepo.findById(userId);
+    const user = await this.userRepo.findById(userId);
 
     let payment = null;
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
@@ -69,5 +69,5 @@ export class CheckoutController {
         payment,
       },
     });
-  }
+  });
 }

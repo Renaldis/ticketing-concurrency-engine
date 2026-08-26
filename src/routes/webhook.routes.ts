@@ -3,6 +3,8 @@ import { WebhookController } from '../controllers/webhook.controller.js';
 
 const router = Router();
 
-router.post('/webhook/payment', WebhookController.handlePaymentWebhook);
+const webhookController = new WebhookController();
+
+router.post('/webhook/payment', webhookController.handlePaymentWebhook);
 
 export default router;
