@@ -10,8 +10,20 @@ export class EventController {
   getAll = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string;
+    const location = req.query.location as string;
+    const sortBy = req.query.sortBy as string;
+    const sortOrder = req.query.sortOrder as 'asc' | 'desc';
 
-    const result = await this.eventService.getAllEvents(page, limit);
+    const result = await this.eventService.getAllEvents({
+      page,
+      limit,
+      search,
+      location,
+      sortBy,
+      sortOrder,
+    });
+
     res.status(200).json({
       status: 'success',
       data: result,

@@ -4,11 +4,25 @@ import { AppError } from '../utils/app-error';
 export class EventService {
   constructor(private eventRepo: EventRepository) {}
 
-  async getAllEvents(page: number = 1, limit = 10) {
+  async getAllEvents(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    location?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const page = params.page && params.page > 0 ? params.page : 1;
+    const limit = params.limit && params.limit > 0 ? params.limit : 10;
     const skip = (page - 1) * limit;
     const take = limit;
 
-    const { events, totalCount } = await this.eventRepo.findAll(skip, take);
+    const { events, totalCount } = await this.eventRepo.findAll(skip, take, {
+      search: params.search,
+      location: params.location,
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
+    });
     const totalPages = Math.ceil(totalCount / limit);
 
     return {

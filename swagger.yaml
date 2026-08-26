@@ -163,6 +163,29 @@ paths:
           schema:
             type: integer
             default: 10
+        - name: search
+          in: query
+          description: Cari teks berdasarkan nama judul atau deskripsi event
+          schema:
+            type: string
+        - name: location
+          in: query
+          description: Saring data berdasarkan nama kota/lokasi event
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          description: "Urutkan data berdasarkan nama kolom (contoh: date, title, createdAt)"
+          schema:
+            type: string
+            default: date
+        - name: sortOrder
+          in: query
+          description: Arah sorting data (asc atau desc)
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
       responses:
         "200":
           description: Daftar event berhasil dimuat
