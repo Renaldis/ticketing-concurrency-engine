@@ -73,4 +73,16 @@ export class EventService {
     });
     return newEvent;
   }
+
+  async updateEvent(id: string, data: any) {
+    const existing = await this.eventRepo.findById(id);
+    if (!existing) throw new AppError('Event not found', 404);
+    return this.eventRepo.update(id, data);
+  }
+
+  async deleteEvent(id: string) {
+    const existing = await this.eventRepo.findById(id);
+    if (!existing) throw new AppError('Event not found', 404);
+    return this.eventRepo.delete(id);
+  }
 }

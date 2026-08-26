@@ -59,4 +59,17 @@ export class EventRepository {
       },
     });
   }
+
+  async update(id: string, data: Partial<Prisma.EventUpdateInput>) {
+    return prisma.event.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async delete(id: string) {
+    return prisma.event.delete({
+      where: { id },
+    });
+  }
 }

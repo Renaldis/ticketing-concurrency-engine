@@ -84,4 +84,22 @@ export class EventController {
       data: { event: newEvent },
     });
   });
+
+  update = async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+
+    const updateData = req.body;
+    if (req.file) {
+      // jika upload gambar baru
+      updateData.imageUrl = (req.file as any).location || req.file.filename;
+    }
+    const updatedEvent = await this.eventService.updateEvent(String(id), updateData);
+    res.status(200).json({ status: 'success', data: updatedEvent });
+  };
+
+  delete = async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    await this.eventService.deleteEvent(String(id));
+    res.status(200).json({ status: 'success', message: 'Event deleted successfully' });
+  };
 }
