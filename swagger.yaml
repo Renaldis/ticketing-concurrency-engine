@@ -324,6 +324,104 @@ paths:
                     type: string
                     example: Event not found
 
+    put:
+      summary: Mengubah Data Event (Khusus Admin)
+      security:
+        - BearerAuth: []
+      tags:
+        - Event Catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Event (UUID)
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: Concert Spectacular 2026 Remastered
+                description:
+                  type: string
+                  example: Updated description
+                location:
+                  type: string
+                  example: GBK Main Stadium
+                date:
+                  type: string
+                  format: date-time
+                  example: "2026-12-01T19:00:00.000Z"
+                image:
+                  type: string
+                  format: binary
+                  description: File poster baru (opsional)
+      responses:
+        "200":
+          description: Event berhasil diubah
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      event:
+                        $ref: '#/components/schemas/Event'
+        "400":
+          description: Data tidak valid
+        "401":
+          description: Unauthorized JWT Token hilang
+        "403":
+          description: Forbidden (Khusus role ADMIN)
+        "404":
+          description: Event tidak ditemukan
+
+    delete:
+      summary: Menghapus Event (Khusus Admin)
+      security:
+        - BearerAuth: []
+      tags:
+        - Event Catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Event (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Event berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Event deleted successfully
+        "401":
+          description: Unauthorized JWT Token hilang
+        "403":
+          description: Forbidden (Khusus role ADMIN)
+        "404":
+          description: Event tidak ditemukan
+
   /checkout:
     post:
       summary: Memesan Tiket Konser (Secure Queue, Locks, and Idempotency)
