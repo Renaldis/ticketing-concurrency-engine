@@ -13,7 +13,8 @@
     "test:catalog": "tsx test-catalog.ts",
     "test:auth": "tsx test-auth.ts",
     "test:ratelimit": "tsx test-ratelimit.ts",
-    "test:orders": "tsx test-orders.ts"
+    "test:orders": "tsx test-orders.ts",
+    "test:checkin": "tsx test-checkin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

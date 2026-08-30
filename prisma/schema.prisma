@@ -73,6 +73,7 @@ model Order {
   event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   status      OrderStatus @default(PENDING) // PENDING, PAID, CANCELLED
   totalAmount Decimal     @db.Decimal(10, 2)
+  checkedInAt DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
@@ -86,6 +87,7 @@ enum OrderStatus {
   PENDING
   PAID
   CANCELLED
+  CHECKED_IN
 }
 
 model OrderItem {

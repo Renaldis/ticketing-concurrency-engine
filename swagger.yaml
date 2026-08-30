@@ -605,6 +605,88 @@ paths:
         "404":
           description: Order tidak ditemukan
 
+  /tickets/check-in:
+    post:
+      summary: Memindai QR Code Tiket di Gate Masuk (Khusus Admin / Staff Scanner)
+      security:
+        - BearerAuth: []
+      tags:
+        - Orders & Checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - qrData
+              properties:
+                qrData:
+                  type: string
+                  description: String payload hasil scan QR Code (atau Order ID)
+                  example: '{"orderId":"d0a6ebe2-a1ac-42d7-8830-5acde256cc6a","userId":"...","eventId":"..."}'
+      responses:
+        "200":
+          description: Check-in berhasil! Pengunjung diizinkan masuk gate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Check-in successful! Welcome to the event.
+                  data:
+                    type: object
+                    properties:
+                      orderId:
+                        type: string
+                        format: uuid
+                      checkedInAt:
+                        type: string
+                        format: date-time
+                      attendee:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: Budi Pembeli
+                          email:
+                            type: string
+                            example: buyer@example.com
+                      event:
+                        type: object
+                        properties:
+                          title:
+                            type: string
+                          location:
+                            type: string
+                          date:
+                            type: string
+                            format: date-time
+                      tickets:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category:
+                              type: string
+                              example: VIP
+                            quantity:
+                              type: integer
+                              example: 1
+        "400":
+          description: Tiket sudah pernah dipakai (Duplikat) ATAU status belum PAID / Expired
+        "401":
+          description: Unauthorized (Token hilang / tidak valid)
+        "403":
+          description: Forbidden (Bukan akun ADMIN / Staff Scanner)
+        "404":
+          description: Order tiket tidak ditemukan
+
   /webhook:
     post:
       summary: Memproses Konfirmasi Pembayaran Webhook (Stripe/Midtrans HMAC)

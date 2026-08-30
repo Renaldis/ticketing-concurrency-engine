@@ -12,6 +12,7 @@ import webhookRoutes from './routes/webhook.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import eventRoutes from './routes/event.routes.js';
 import orderRoutes from './routes/order.routes.js';
+import ticketRoutes from './routes/ticket.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 
 // Nyalakan worker pemantau antrean BullMQ
@@ -48,6 +49,7 @@ app.use('/api', webhookRoutes);
 app.use('/api', authRoutes);
 app.use('/api', eventRoutes);
 app.use('/api', orderRoutes);
+app.use('/api', ticketRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({
