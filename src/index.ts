@@ -11,6 +11,7 @@ import checkoutRoutes from './routes/checkout.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import eventRoutes from './routes/event.routes.js';
+import orderRoutes from './routes/order.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 
 // Nyalakan worker pemantau antrean BullMQ
@@ -24,9 +25,11 @@ const PORT = process.env.PORT || 3000;
 
 // Pasang Middleware Global Keamanan & CORS
 // Matikan CSP bawaan helmet agar inline CSS/JS milik Swagger UI terload dengan sukses
-app.use(helmet({
-  contentSecurityPolicy: false,
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  }),
+);
 app.use(cors());
 
 // Middleware untuk mempermudah membaca body HTTP berformat JSON
@@ -44,6 +47,7 @@ app.use('/api', checkoutRoutes);
 app.use('/api', webhookRoutes);
 app.use('/api', authRoutes);
 app.use('/api', eventRoutes);
+app.use('/api', orderRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({
