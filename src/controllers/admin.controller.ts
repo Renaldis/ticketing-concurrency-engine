@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { AdminService } from '../services/admin.service.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { OrderStatus } from '@prisma/client';
+import redis from '../config/redis.js';
+import { AppError } from '../utils/app-error.js';
 
 export class AdminController {
   constructor(private adminService: AdminService) {}
@@ -40,6 +42,27 @@ export class AdminController {
     res.status(200).json({
       status: 'success',
       data: { summary },
+    });
+  });
+
+  getExpirationTtl = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const ttlMinutes = (await redis.get('system:order_expiration_ttl_minutes')) || '15';
+    res.status(200).json({
+      status: 'success',
+      data: { ttlMinutes: parseInt(ttlMinutes, 10) },
+    });
+  });
+
+  updateExpirationTtl = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { ttlMinutes } = req.body;
+    if (!ttlMinutes || typeof ttlMinutes !== 'number' || ttlMinutes < 1 || ttlMinutes > 120) {
+      throw new AppError('ttlMinutes must be a number between 1 and 120 minutes', 400);
+    }
+    await redis.set('system:order_expiration_ttl_minutes', ttlMinutes.toString());
+    res.status(200).json({
+      status: 'success',
+      message: `Order expiration TTL successfully updated to ${ttlMinutes} minutes`,
+      data: { ttlMinutes },
     });
   });
 }

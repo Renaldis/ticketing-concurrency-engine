@@ -4,6 +4,7 @@ dotenv.config();
 export async function createMidtransSnapTransaction(options: {
   orderId: string;
   grossAmount: number;
+  expiryMinutes?: number;
   customerDetails?: {
     name?: string;
     email?: string;
@@ -26,13 +27,19 @@ export async function createMidtransSnapTransaction(options: {
   // Susun header Basic Auth menggunakan Base64 encoding ServerKey
   const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
-  const payload = {
+  const expiryDuration = options.expiryMinutes || 15;
+
+  const payload: any = {
     transaction_details: {
       order_id: options.orderId,
       gross_amount: options.grossAmount,
     },
     credit_card: {
       secure: true,
+    },
+    expiry: {
+      unit: 'minutes',
+      duration: expiryDuration,
     },
     customer_details: options.customerDetails
       ? {
@@ -65,6 +72,40 @@ export async function createMidtransSnapTransaction(options: {
     };
   } catch (error) {
     console.error('[Midtrans Error]: Failed to create transaction:', error);
+    return null;
+  }
+}
+
+export async function getMidtransTransactionStatus(orderId: string): Promise<any | null> {
+  const serverKey = process.env.MIDTRANS_SERVER_KEY;
+  if (!serverKey || serverKey.includes('your-midtrans-')) {
+    return null;
+  }
+
+  const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+  const url = isProduction
+    ? `https://api.midtrans.com/v2/${orderId}/status`
+    : `https://api.sandbox.midtrans.com/v2/${orderId}/status`;
+
+  const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[Midtrans Status Error]:', error);
     return null;
   }
 }

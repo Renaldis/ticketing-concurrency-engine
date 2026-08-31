@@ -1,6 +1,6 @@
 import { Order, Prisma, TicketCategory } from '@prisma/client';
 import prisma from '../config/prisma.js';
-import { LockManager } from '../utils/lock-manager.js';
+import redis from '../config/redis.js';
 import { orderExpirationQueue } from '../config/queue.js';
 import { AppError } from '../utils/app-error.js';
 
@@ -16,6 +16,7 @@ interface CheckoutResponse {
     }[];
   };
   ticketLeft: number;
+  ttlMinutes: number;
 }
 
 export class CheckoutService {
@@ -25,6 +26,18 @@ export class CheckoutService {
     ticketCategoryId: string,
     quantity: number,
   ): Promise<CheckoutResponse> {
+    // Ambil konfigurasi TTL kedaluwarsa dinamis dari Redis (Default 15 menit jika belum diset)
+    let ttlMinutes = 15;
+    try {
+      const savedTtl = await redis.get('system:order_expiration_ttl_minutes');
+      if (savedTtl) {
+        ttlMinutes = Math.max(1, parseInt(savedTtl, 10));
+      }
+    } catch (e) {
+      console.warn('[CheckoutService]: Could not read dynamic TTL from Redis. Using default 15 mins.');
+    }
+    const delayMs = ttlMinutes * 60 * 1000;
+
     // Operasi dikemas dalam transaksi DB ACID tanpa butuh Redis Lock
     return await prisma.$transaction(async (tx) => {
       // 1. Ambil data kategori tiket untuk mengetahui harga & validasi keberadaan
@@ -95,12 +108,14 @@ export class CheckoutService {
         },
       });
 
-      // 6. Masukkan task penundaan kadaluarsa (2 menit) ke BullMQ
-      await orderExpirationQueue.add('cancel-order', { orderId: order.id }, { delay: 120000 });
+      // 6. Masukkan task penundaan kadaluarsa dinamis ke BullMQ
+      console.log(`[CheckoutService]: Enqueuing expiration job for Order ${order.id} with ${ttlMinutes} mins delay`);
+      await orderExpirationQueue.add('cancel-order', { orderId: order.id }, { delay: delayMs });
 
       return {
         order,
         ticketLeft: updatedCategory?.remainingCapacity ?? 0,
+        ttlMinutes,
       };
     });
   }

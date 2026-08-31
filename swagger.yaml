@@ -723,6 +723,42 @@ paths:
         "404":
           description: Order tidak ditemukan
 
+  /orders/{id}/sync-status:
+    post:
+      summary: Sinkronisasi Status Pembayaran Langsung ke Midtrans (Auto-Recovery)
+      security:
+        - BearerAuth: []
+      tags:
+        - Orders & Checkout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Order (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Status pembayaran berhasil disinkronkan dengan provider
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        $ref: '#/components/schemas/Order'
+        "401":
+          description: Unauthorized
+        "404":
+          description: Order tidak ditemukan
+
   /tickets/check-in:
     post:
       summary: Memindai QR Code Tiket di Gate Masuk (Khusus Admin / Staff Scanner)
@@ -863,6 +899,64 @@ paths:
           description: Unauthorized
         "403":
           description: Forbidden (Khusus role ADMIN)
+
+  /admin/settings/expiration:
+    get:
+      summary: Mendapatkan Durasi Waktu Kadaluarsa Pembayaran Tiket (Khusus Admin)
+      security:
+        - BearerAuth: []
+      tags:
+        - Admin Reporting & Analytics
+      responses:
+        "200":
+          description: Durasi TTL expiration berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      ttlMinutes:
+                        type: integer
+                        example: 15
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+    put:
+      summary: Mengatur Durasi Waktu Kadaluarsa Pembayaran Tiket BullMQ (Khusus Admin)
+      security:
+        - BearerAuth: []
+      tags:
+        - Admin Reporting & Analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ttlMinutes
+              properties:
+                ttlMinutes:
+                  type: integer
+                  description: Durasi dalam satuan menit (1 s/d 120 menit)
+                  example: 15
+      responses:
+        "200":
+          description: Durasi TTL berhasil diperbarui
+        "400":
+          description: Format waktu tidak valid
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
 
   /admin/orders:
     get:

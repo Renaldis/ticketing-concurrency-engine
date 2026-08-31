@@ -6,5 +6,6 @@ const router = Router();
 const webhookController = new WebhookController();
 
 router.post('/webhook/payment', webhookController.handlePaymentWebhook);
+router.post('/webhooks/payment', webhookController.handlePaymentWebhook);
 
 export default router;

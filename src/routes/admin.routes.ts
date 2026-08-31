@@ -18,5 +18,7 @@ router.use(authenticateToken as any, authorizeRoles('ADMIN') as any);
 router.get('/admin/summary', adminController.getOverallSummary);
 router.get('/admin/orders', adminController.getAllOrders);
 router.get('/admin/events/:id/summary', adminController.getEventSummary);
+router.get('/admin/settings/expiration', adminController.getExpirationTtl);
+router.put('/admin/settings/expiration', adminController.updateExpirationTtl);
 
 export default router;

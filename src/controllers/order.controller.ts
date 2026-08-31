@@ -34,4 +34,20 @@ export class OrderController {
       data: { ticket },
     });
   });
+
+  syncStatus = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      throw new AppError('Unauthorized', 401);
+    }
+
+    const order = await this.orderService.syncOrderStatus(String(id), userId);
+    res.status(200).json({
+      status: 'success',
+      message: 'Order status synchronized with payment provider',
+      data: { order },
+    });
+  });
 }

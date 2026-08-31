@@ -1,12 +1,80 @@
-import { OrderRepository } from '../repositories/order.repository';
-import { AppError } from '../utils/app-error';
+import { OrderRepository } from '../repositories/order.repository.js';
+import { AppError } from '../utils/app-error.js';
 import QRCode from 'qrcode';
+import { getMidtransTransactionStatus } from '../utils/midtrans.js';
+import prisma from '../config/prisma.js';
 
 export class OrderService {
   constructor(private orderRepo: OrderRepository) {}
 
   async getUserOrders(userId: string) {
     return this.orderRepo.findByUserId(userId);
+  }
+
+  async syncOrderStatus(orderId: string, userId: string) {
+    const order = await this.orderRepo.findByIdAndUserId(orderId, userId);
+    if (!order) {
+      throw new AppError('Order not found', 404);
+    }
+
+    // Jika sudah PAID / CHECKED_IN, kembalikan data terkini
+    if (order.status === 'PAID' || order.status === 'CHECKED_IN') {
+      return order;
+    }
+
+    // Query status langsung ke Midtrans API
+    const midtransData = await getMidtransTransactionStatus(orderId);
+    if (!midtransData) {
+      return order;
+    }
+
+    const txStatus = midtransData.transaction_status;
+    const fraudStatus = midtransData.fraud_status;
+
+    let isSettlement =
+      txStatus === 'settlement' || (txStatus === 'capture' && fraudStatus === 'accept');
+
+    if (isSettlement) {
+      await prisma.$transaction(async (tx) => {
+        // Cek apakah sebelumnya CANCELLED -> Smart Auto-Recovery
+        if (order.status === 'CANCELLED') {
+          for (const item of order.orderItems) {
+            const updateResult = await tx.ticketCategory.updateMany({
+              where: {
+                id: item.ticketCategoryId,
+                remainingCapacity: { gte: item.quantity },
+              },
+              data: {
+                remainingCapacity: { decrement: item.quantity },
+              },
+            });
+
+            if (updateResult.count === 0) {
+              console.warn(
+                `[syncStatus Auto-Recovery]: Kuota tiket untuk kategori ${item.ticketCategoryId} habis!`,
+              );
+              await tx.transaction.update({
+                where: { orderId },
+                data: { status: 'FAILED' },
+              });
+              return;
+            }
+          }
+        }
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: 'PAID' },
+        });
+
+        await tx.transaction.update({
+          where: { orderId },
+          data: { status: 'SUCCESS' },
+        });
+      });
+    }
+
+    return this.orderRepo.findByIdAndUserId(orderId, userId);
   }
 
   async getEticket(orderId: string, userId: string) {

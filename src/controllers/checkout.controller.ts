@@ -39,11 +39,12 @@ export class CheckoutController {
 
     if (!isMocked) {
       console.log(
-        `[Checkout Controller]: Generating Midtrans Snap URL token for Order ${order.id}...`,
+        `[Checkout Controller]: Generating Midtrans Snap URL token for Order ${order.id} with ${result.ttlMinutes} mins expiry...`,
       );
       const snapResult = await createMidtransSnapTransaction({
         orderId: order.id,
         grossAmount: Number(order.totalAmount),
+        expiryMinutes: result.ttlMinutes,
         customerDetails: {
           name: user?.name || 'Customer',
           email: user?.email || 'customer@example.com',

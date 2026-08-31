@@ -110,14 +110,40 @@ export class WebhookController {
           console.log(`[webhook]: Order ${orderId} sudah berstatus PAID sebelumnya (Idempotent).`);
           return;
         }
-        if (order.status === 'CANCELLED') {
-          console.log(
-            `[webhook]: Order ${orderId} sudah berstatus CANCELLED sebelumnya (Idempotent).`,
-          );
-          return;
-        }
 
         if (status === 'settlement') {
+          // JIKA STATUS SEBELUMNYA CANCELLED -> SMART ORDER AUTO-RECOVERY
+          if (order.status === 'CANCELLED') {
+            console.log(
+              `[webhook Auto-Recovery]: Order ${orderId} terlanjur CANCELLED tapi settlement berhasil di Midtrans. Memeriksa kuota tiket...`,
+            );
+
+            for (const item of order.orderItems) {
+              const updateResult = await tx.ticketCategory.updateMany({
+                where: {
+                  id: item.ticketCategoryId,
+                  remainingCapacity: { gte: item.quantity },
+                },
+                data: {
+                  remainingCapacity: { decrement: item.quantity },
+                },
+              });
+
+              if (updateResult.count === 0) {
+                console.warn(
+                  `[webhook Auto-Recovery]: Kuota tiket untuk kategori ${item.ticketCategoryId} sudah habis! Order ditandai butuh refund.`,
+                );
+                await tx.transaction.update({
+                  where: { orderId: orderId },
+                  data: { status: 'FAILED' },
+                });
+                return;
+              }
+            }
+
+            console.log(`[webhook Auto-Recovery]: Kuota aman. Memulihkan Order ${orderId} ke PAID.`);
+          }
+
           console.log(`[webhook]: Mengubah Status Order ${orderId} menjadi PAID`);
           await tx.order.update({
             where: { id: orderId },
@@ -128,6 +154,13 @@ export class WebhookController {
             data: { status: 'SUCCESS' },
           });
         } else if (status === 'expire' || status === 'cancel') {
+          if (order.status === 'CANCELLED') {
+            console.log(
+              `[webhook]: Order ${orderId} sudah berstatus CANCELLED sebelumnya (Idempotent).`,
+            );
+            return;
+          }
+
           console.log(`[webhook]: Mengubah Status Order ${orderId} menjadi CANCELLED`);
           await tx.order.update({
             where: { id: orderId },
