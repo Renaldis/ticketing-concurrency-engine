@@ -6,6 +6,7 @@ export const createEventSchema = z.object({
       .string({ message: 'title is required' })
       .min(3, 'Title must be at least 3 characters long'),
     description: z.string().optional(),
+    category: z.enum(['CONCERT', 'SPORTS', 'SEMINAR', 'WEBINAR', 'EXHIBITION', 'WORKSHOP', 'FESTIVAL']).optional(),
     location: z
       .string({ message: 'location is required' })
       .min(3, 'Location must be at least 3 characters long'),
@@ -39,6 +40,7 @@ export const updateEventSchema = z.object({
   body: z.object({
     title: z.string().min(3).optional(),
     description: z.string().optional(),
+    category: z.enum(['CONCERT', 'SPORTS', 'SEMINAR', 'WEBINAR', 'EXHIBITION', 'WORKSHOP', 'FESTIVAL']).optional(),
     location: z.string().min(3).optional(),
     date: z.string().datetime().optional(),
   }),

@@ -9,6 +9,7 @@ export class EventService {
     limit?: number;
     search?: string;
     location?: string;
+    category?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }) {
@@ -20,6 +21,7 @@ export class EventService {
     const { events, totalCount } = await this.eventRepo.findAll(skip, take, {
       search: params.search,
       location: params.location,
+      category: params.category,
       sortBy: params.sortBy,
       sortOrder: params.sortOrder,
     });
@@ -51,6 +53,7 @@ export class EventService {
     location: string;
     date: Date;
     imageUrl?: string;
+    category?: any;
     slug?: string;
     categories: Array<{ name: string; price: number; capacity: number }>;
   }) {
@@ -70,6 +73,7 @@ export class EventService {
     const newEvent = await this.eventRepo.create({
       title: eventData.title,
       slug: generatedSlug,
+      category: eventData.category || 'CONCERT',
       description: eventData.description,
       location: eventData.location,
       date: eventData.date,

@@ -173,6 +173,13 @@ paths:
           description: Saring data berdasarkan nama kota/lokasi event
           schema:
             type: string
+        - name: category
+          in: query
+          description: Saring data berdasarkan kategori event
+          schema:
+            type: string
+            enum: [ALL, CONCERT, SPORTS, SEMINAR, WEBINAR, EXHIBITION, WORKSHOP, FESTIVAL]
+            default: ALL
         - name: sortBy
           in: query
           description: "Urutkan data berdasarkan nama kolom (contoh: date, title, createdAt)"
@@ -236,10 +243,15 @@ paths:
               properties:
                 title:
                   type: string
-                  example: Java Jazz 2026
+                  example: Jakarta Night Marathon 10K
+                category:
+                  type: string
+                  enum: [CONCERT, SPORTS, SEMINAR, WEBINAR, EXHIBITION, WORKSHOP, FESTIVAL]
+                  default: CONCERT
+                  example: SPORTS
                 description:
                   type: string
-                  example: <h1>Specatular Jazz Live!</h1>
+                  example: <h1>Annual night road race Jakarta!</h1>
                 location:
                   type: string
                   example: JIExpo Kemayoran
@@ -1068,6 +1080,10 @@ components:
           example: "neon-symphony-core-2026"
         title:
           type: string
+        category:
+          type: string
+          enum: [CONCERT, SPORTS, SEMINAR, WEBINAR, EXHIBITION, WORKSHOP, FESTIVAL]
+          example: "CONCERT"
         description:
           type: string
         location:

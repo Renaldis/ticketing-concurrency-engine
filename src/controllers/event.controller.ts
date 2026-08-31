@@ -12,6 +12,7 @@ export class EventController {
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
     const location = req.query.location as string;
+    const category = req.query.category as string;
     const sortBy = req.query.sortBy as string;
     const sortOrder = req.query.sortOrder as 'asc' | 'desc';
 
@@ -20,6 +21,7 @@ export class EventController {
       limit,
       search,
       location,
+      category,
       sortBy,
       sortOrder,
     });
@@ -40,7 +42,7 @@ export class EventController {
   });
 
   create = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { title, description, location, date, categories } = req.body;
+    const { title, description, location, date, category, categories } = req.body;
 
     if (!title || !location || !date || !categories) {
       throw new AppError(
@@ -59,14 +61,13 @@ export class EventController {
 
     let imageUrl: string | undefined;
     if (req.file) {
-      // Jika kredensial R2 di .env masih kosong/placeholder, lewati upload agar API tidak crash
       const isR2Configured =
         process.env.R2_ENDPOINT && !process.env.R2_ENDPOINT.includes('your-cloudflare-account-id');
       if (isR2Configured) {
         imageUrl = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
       } else {
         console.warn('[Admin Create Event]: R2 credentials are placeholders. File upload skipped.');
-        imageUrl = 'https://via.placeholder.com/800x400.png?text=Placeholder+Poster';
+        imageUrl = 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1200&auto=format&fit=crop';
       }
     }
 
@@ -74,6 +75,7 @@ export class EventController {
       title,
       description,
       location,
+      category,
       date: new Date(date),
       imageUrl,
       categories: parsedCategories,

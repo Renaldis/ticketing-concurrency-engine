@@ -5,7 +5,13 @@ export class EventRepository {
   async findAll(
     skip: number,
     take: number,
-    options: { search?: string; location?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' },
+    options: {
+      search?: string;
+      location?: string;
+      category?: string;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+    },
   ): Promise<{ events: Event[]; totalCount: number }> {
     const where: Prisma.EventWhereInput = {};
 
@@ -18,6 +24,10 @@ export class EventRepository {
 
     if (options.location) {
       where.location = { contains: options.location, mode: 'insensitive' };
+    }
+
+    if (options.category && options.category !== 'ALL') {
+      where.category = options.category as any;
     }
 
     const validSortFields = ['date', 'title', 'createdAt', 'updatedAt'];
