@@ -20,6 +20,11 @@ export class CheckoutController {
       throw new AppError('User authentication failed', 401);
     }
 
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError('User session is invalid or user no longer exists. Please sign in again.', 401);
+    }
+
     const result = await this.checkoutService.executeCheckout(
       userId,
       eventId,
@@ -27,8 +32,6 @@ export class CheckoutController {
       quantity,
     );
     const order = result.order;
-
-    const user = await this.userRepo.findById(userId);
 
     let payment = null;
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
