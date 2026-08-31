@@ -1,14 +1,115 @@
 import { OrderRepository } from '../repositories/order.repository.js';
 import { AppError } from '../utils/app-error.js';
 import QRCode from 'qrcode';
-import { getMidtransTransactionStatus } from '../utils/midtrans.js';
+import { createMidtransSnapTransaction, getMidtransTransactionStatus } from '../utils/midtrans.js';
 import prisma from '../config/prisma.js';
+import redis from '../config/redis.js';
 
 export class OrderService {
   constructor(private orderRepo: OrderRepository) {}
 
   async getUserOrders(userId: string) {
     return this.orderRepo.findByUserId(userId);
+  }
+
+  // --- RESUME PAYMENT (DAPATKAN KEMBALI SNAP TOKEN UNTUK ORDER PENDING) ---
+  async getPaymentToken(orderId: string, userId: string) {
+    const order = await this.orderRepo.findByIdAndUserId(orderId, userId);
+    if (!order) {
+      throw new AppError('Order not found', 404);
+    }
+
+    if (order.status === 'PAID' || order.status === 'CHECKED_IN') {
+      throw new AppError('Order has already been paid and settled.', 400);
+    }
+
+    if (order.status === 'CANCELLED') {
+      throw new AppError('Order has expired or been cancelled. Please book a new ticket.', 400);
+    }
+
+    // Jika snapToken sudah tersimpan di database transaksi, langsung kembalikan
+    if (order.transaction?.snapToken) {
+      return {
+        orderId: order.id,
+        amount: order.totalAmount,
+        token: order.transaction.snapToken,
+        redirectUrl: order.transaction.snapRedirectUrl,
+      };
+    }
+
+    // Jika belum ada, buatkan Snap Token baru
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    let ttlMinutes = 15;
+    try {
+      const savedTtl = await redis.get('system:order_expiration_ttl_minutes');
+      if (savedTtl) ttlMinutes = parseInt(savedTtl, 10);
+    } catch {}
+
+    const snapResult = await createMidtransSnapTransaction({
+      orderId: order.id,
+      grossAmount: Number(order.totalAmount),
+      expiryMinutes: ttlMinutes,
+      customerDetails: {
+        name: user?.name || 'Customer',
+        email: user?.email || 'customer@example.com',
+      },
+    });
+
+    const token = snapResult?.token || 'mock-midtrans-snap-token-resume';
+    const redirectUrl = snapResult?.redirect_url || 'https://app.sandbox.midtrans.com/snap/v2/vtweb/mock-token';
+
+    await prisma.transaction.update({
+      where: { orderId: order.id },
+      data: { snapToken: token, snapRedirectUrl: redirectUrl },
+    });
+
+    return {
+      orderId: order.id,
+      amount: order.totalAmount,
+      token,
+      redirectUrl,
+    };
+  }
+
+  // --- MANUAL CANCEL ORDER (USER MEMBATALKAN PESANAN SECARA MANUAL) ---
+  async cancelUserOrder(orderId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id: orderId, userId },
+        include: { orderItems: true },
+      });
+
+      if (!order) {
+        throw new AppError('Order not found', 404);
+      }
+
+      if (order.status !== 'PENDING') {
+        throw new AppError(`Cannot cancel order with status ${order.status}`, 400);
+      }
+
+      // Update order status ke CANCELLED & transaction ke FAILED
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'CANCELLED' },
+      });
+
+      await tx.transaction.update({
+        where: { orderId },
+        data: { status: 'FAILED' },
+      });
+
+      // Kembalikan kapasitas stok tiket secara atomic
+      for (const item of order.orderItems) {
+        await tx.ticketCategory.update({
+          where: { id: item.ticketCategoryId },
+          data: {
+            remainingCapacity: { increment: item.quantity },
+          },
+        });
+      }
+
+      return { message: 'Order successfully cancelled and tickets restocked' };
+    });
   }
 
   async syncOrderStatus(orderId: string, userId: string) {

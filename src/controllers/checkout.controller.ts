@@ -5,6 +5,7 @@ import { AppError } from '../utils/app-error.js';
 import { UserRepository } from '../repositories/user.repository.js';
 import { createMidtransSnapTransaction } from '../utils/midtrans.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import prisma from '../config/prisma.js';
 
 export class CheckoutController {
   constructor(
@@ -55,6 +56,15 @@ export class CheckoutController {
           token: snapResult.token,
           redirectUrl: snapResult.redirect_url,
         };
+
+        // Simpan token & redirect URL ke record transaksi agar bisa di-resume nanti
+        await prisma.transaction.update({
+          where: { orderId: order.id },
+          data: {
+            snapToken: snapResult.token,
+            snapRedirectUrl: snapResult.redirect_url,
+          },
+        });
       }
     } else {
       console.warn(
@@ -64,6 +74,14 @@ export class CheckoutController {
         token: 'mock-midtrans-snap-token-12345678',
         redirectUrl: `https://app.sandbox.midtrans.com/snap/v2/vtweb/mock-token-12345678`,
       };
+
+      await prisma.transaction.update({
+        where: { orderId: order.id },
+        data: {
+          snapToken: payment.token,
+          snapRedirectUrl: payment.redirectUrl,
+        },
+      });
     }
     res.status(201).json({
       message: 'Checkout successful',

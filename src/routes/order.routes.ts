@@ -14,5 +14,7 @@ const orderController = new OrderController(orderService);
 router.get('/orders/my-orders', authenticateToken as any, orderController.getMyOrders);
 router.get('/orders/:id/ticket', authenticateToken as any, orderController.getETicket);
 router.post('/orders/:id/sync-status', authenticateToken as any, orderController.syncStatus);
+router.post('/orders/:id/pay', authenticateToken as any, orderController.getPaymentToken);
+router.post('/orders/:id/cancel', authenticateToken as any, orderController.cancelOrder);
 
 export default router;

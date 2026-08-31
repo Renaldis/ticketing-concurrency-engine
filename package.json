@@ -14,6 +14,7 @@
     "test:auth": "tsx test-auth.ts",
     "test:ratelimit": "tsx test-ratelimit.ts",
     "test:orders": "tsx test-orders.ts",
+    "test:resume-payment": "tsx test-resume-payment.ts",
     "test:checkin": "tsx test-checkin.ts",
     "test:admin": "tsx test-admin.ts"
   },

@@ -38,7 +38,7 @@ export async function createMidtransSnapTransaction(options: {
       secure: true,
     },
     expiry: {
-      unit: 'minutes',
+      unit: 'minute',
       duration: expiryDuration,
     },
     customer_details: options.customerDetails

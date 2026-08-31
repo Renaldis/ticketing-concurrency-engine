@@ -118,6 +118,8 @@ model Transaction {
   orderId               String            @unique
   order                 Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   paymentGatewayOrderId String?           @unique // Order ID dari Payment Gateway (Stripe/Midtrans)
+  snapToken             String?           // Token Snap Midtrans untuk resume payment
+  snapRedirectUrl       String?           // URL redirect Snap
   status                TransactionStatus @default(PENDING)
   amount                Decimal           @db.Decimal(10, 2)
   paymentMethod         String?

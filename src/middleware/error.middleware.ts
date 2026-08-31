@@ -25,10 +25,9 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
   }
 
   // 3. Tangani Error Tak Terduga Lainnya (Koneksi DB Mati, Type Error, 500)
-  // Stack trace hanya dicetak di terminal server, tidak dibagikan ke client luar demi keamanan
   console.error('[Internal System Error]:', err);
   res.status(500).json({
     status: 'error',
-    message: 'Internal server error. Please try again later.',
+    message: err.message || 'Internal server error. Please try again later.',
   });
 };

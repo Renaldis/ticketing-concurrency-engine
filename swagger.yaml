@@ -759,6 +759,87 @@ paths:
         "404":
           description: Order tidak ditemukan
 
+  /orders/{id}/pay:
+    post:
+      summary: Mendapatkan Kembali Snap Token untuk Melanjutkan Pembayaran Pesanan PENDING
+      security:
+        - BearerAuth: []
+      tags:
+        - Orders & Checkout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Order (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Snap Token pembayaran berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      payment:
+                        type: object
+                        properties:
+                          orderId:
+                            type: string
+                          token:
+                            type: string
+                          redirectUrl:
+                            type: string
+        "400":
+          description: Order sudah berstatus PAID atau CANCELLED
+        "401":
+          description: Unauthorized
+        "404":
+          description: Order tidak ditemukan
+
+  /orders/{id}/cancel:
+    post:
+      summary: Membatalkan Pesanan PENDING secara Manual dan Mengembalikan Stok Tiket
+      security:
+        - BearerAuth: []
+      tags:
+        - Orders & Checkout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Order (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Pesanan berhasil dibatalkan dan tiket direstock
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Order successfully cancelled and tickets restocked
+        "400":
+          description: Order tidak dalam status PENDING
+        "401":
+          description: Unauthorized
+        "404":
+          description: Order tidak ditemukan
+
   /tickets/check-in:
     post:
       summary: Memindai QR Code Tiket di Gate Masuk (Khusus Admin / Staff Scanner)
