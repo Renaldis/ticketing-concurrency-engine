@@ -43,7 +43,9 @@ export class OrderService {
     try {
       const savedTtl = await redis.get('system:order_expiration_ttl_minutes');
       if (savedTtl) ttlMinutes = parseInt(savedTtl, 10);
-    } catch {}
+    } catch {
+      // Fallback to default
+    }
 
     const snapResult = await createMidtransSnapTransaction({
       orderId: order.id,
@@ -56,7 +58,8 @@ export class OrderService {
     });
 
     const token = snapResult?.token || 'mock-midtrans-snap-token-resume';
-    const redirectUrl = snapResult?.redirect_url || 'https://app.sandbox.midtrans.com/snap/v2/vtweb/mock-token';
+    const redirectUrl =
+      snapResult?.redirect_url || 'https://app.sandbox.midtrans.com/snap/v2/vtweb/mock-token';
 
     await prisma.transaction.update({
       where: { orderId: order.id },
@@ -132,7 +135,7 @@ export class OrderService {
     const txStatus = midtransData.transaction_status;
     const fraudStatus = midtransData.fraud_status;
 
-    let isSettlement =
+    const isSettlement =
       txStatus === 'settlement' || (txStatus === 'capture' && fraudStatus === 'accept');
 
     if (isSettlement) {

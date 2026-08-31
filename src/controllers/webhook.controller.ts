@@ -90,11 +90,7 @@ export class WebhookController {
     await this.dbFinalizeOrder(res, orderId, status);
   });
 
-  private async dbFinalizeOrder(
-    res: Response,
-    orderId: string,
-    status: string,
-  ): Promise<void> {
+  private async dbFinalizeOrder(res: Response, orderId: string, status: string): Promise<void> {
     try {
       await prisma.$transaction(async (tx) => {
         const order = await tx.order.findUnique({
@@ -141,7 +137,9 @@ export class WebhookController {
               }
             }
 
-            console.log(`[webhook Auto-Recovery]: Kuota aman. Memulihkan Order ${orderId} ke PAID.`);
+            console.log(
+              `[webhook Auto-Recovery]: Kuota aman. Memulihkan Order ${orderId} ke PAID.`,
+            );
           }
 
           console.log(`[webhook]: Mengubah Status Order ${orderId} menjadi PAID`);

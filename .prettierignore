@@ -1,0 +1,4 @@
+dist
+node_modules
+prisma/seed-data.json
+package-lock.json

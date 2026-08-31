@@ -51,20 +51,22 @@ export class OrderController {
     });
   });
 
-  getPaymentToken = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    const userId = req.user?.id;
-    const { id } = req.params;
+  getPaymentToken = asyncHandler(
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+      const userId = req.user?.id;
+      const { id } = req.params;
 
-    if (!userId) {
-      throw new AppError('Unauthorized', 401);
-    }
+      if (!userId) {
+        throw new AppError('Unauthorized', 401);
+      }
 
-    const payment = await this.orderService.getPaymentToken(String(id), userId);
-    res.status(200).json({
-      status: 'success',
-      data: { payment },
-    });
-  });
+      const payment = await this.orderService.getPaymentToken(String(id), userId);
+      res.status(200).json({
+        status: 'success',
+        data: { payment },
+      });
+    },
+  );
 
   cancelOrder = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const userId = req.user?.id;

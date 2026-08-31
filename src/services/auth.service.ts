@@ -22,7 +22,7 @@ export class AuthService {
       role: 'CUSTOMER',
     });
 
-    const { password: _, ...userWithoutPassword } = newUser;
+    const { password: _password, ...userWithoutPassword } = newUser;
     return userWithoutPassword;
   }
 

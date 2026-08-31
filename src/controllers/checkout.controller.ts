@@ -23,7 +23,10 @@ export class CheckoutController {
 
     const user = await this.userRepo.findById(userId);
     if (!user) {
-      throw new AppError('User session is invalid or user no longer exists. Please sign in again.', 401);
+      throw new AppError(
+        'User session is invalid or user no longer exists. Please sign in again.',
+        401,
+      );
     }
 
     const result = await this.checkoutService.executeCheckout(

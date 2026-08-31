@@ -1,4 +1,4 @@
-import { Order, Prisma, TicketCategory } from '@prisma/client';
+import { Order, Prisma } from '@prisma/client';
 import prisma from '../config/prisma.js';
 import redis from '../config/redis.js';
 import { orderExpirationQueue } from '../config/queue.js';
@@ -34,7 +34,9 @@ export class CheckoutService {
         ttlMinutes = Math.max(1, parseInt(savedTtl, 10));
       }
     } catch (e) {
-      console.warn('[CheckoutService]: Could not read dynamic TTL from Redis. Using default 15 mins.');
+      console.warn(
+        '[CheckoutService]: Could not read dynamic TTL from Redis. Using default 15 mins.',
+      );
     }
     const delayMs = ttlMinutes * 60 * 1000;
 
@@ -109,7 +111,9 @@ export class CheckoutService {
       });
 
       // 6. Masukkan task penundaan kadaluarsa dinamis ke BullMQ
-      console.log(`[CheckoutService]: Enqueuing expiration job for Order ${order.id} with ${ttlMinutes} mins delay`);
+      console.log(
+        `[CheckoutService]: Enqueuing expiration job for Order ${order.id} with ${ttlMinutes} mins delay`,
+      );
       await orderExpirationQueue.add('cancel-order', { orderId: order.id }, { delay: delayMs });
 
       return {

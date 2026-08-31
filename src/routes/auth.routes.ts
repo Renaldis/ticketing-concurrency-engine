@@ -20,11 +20,6 @@ const authService = new AuthService(userRepo);
 const authController = new AuthController(authService);
 
 router.post('/auth/register', validate(registerSchema), authController.register);
-router.post(
-  '/auth/login',
-  loginLimiter as any,
-  validate(loginSchema),
-  authController.login,
-);
+router.post('/auth/login', loginLimiter as any, validate(loginSchema), authController.login);
 
 export default router;

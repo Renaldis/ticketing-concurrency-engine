@@ -2,7 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../utils/app-error.js';
 
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
+export const errorHandler = (
+  err: Error,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void => {
   // 1. Tangani Error Validasi Zod (Input Salah Format)
   if (err instanceof ZodError) {
     res.status(400).json({

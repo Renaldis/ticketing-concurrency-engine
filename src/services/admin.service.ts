@@ -31,9 +31,7 @@ export class AdminService {
   async getOverallSummary() {
     const data = await this.orderRepo.getOverallAnalytics();
     const overallSoldPercentage =
-      data.totalCapacity > 0
-        ? ((data.totalSold / data.totalCapacity) * 100).toFixed(1)
-        : '0';
+      data.totalCapacity > 0 ? ((data.totalSold / data.totalCapacity) * 100).toFixed(1) : '0';
 
     return {
       financials: {

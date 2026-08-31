@@ -67,7 +67,8 @@ export class EventController {
         imageUrl = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
       } else {
         console.warn('[Admin Create Event]: R2 credentials are placeholders. File upload skipped.');
-        imageUrl = 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1200&auto=format&fit=crop';
+        imageUrl =
+          'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1200&auto=format&fit=crop';
       }
     }
 
