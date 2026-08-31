@@ -102,4 +102,34 @@ export class EventController {
     await this.eventService.deleteEvent(String(id));
     res.status(200).json({ status: 'success', message: 'Event deleted successfully' });
   };
+
+  addCategory = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { name, price, capacity } = req.body;
+    if (!name || price == null || capacity == null) {
+      throw new AppError('Name, price, and capacity are required', 400);
+    }
+    const category = await this.eventService.addTicketCategory(String(id), {
+      name,
+      price: Number(price),
+      capacity: Number(capacity),
+    });
+    res.status(201).json({ status: 'success', data: { category } });
+  });
+
+  adjustStock = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { categoryId } = req.params;
+    const { delta } = req.body;
+    if (delta == null || typeof delta !== 'number') {
+      throw new AppError('delta (number) is required (e.g. +10 or -5)', 400);
+    }
+    const updated = await this.eventService.adjustCategoryStock(String(categoryId), delta);
+    res.status(200).json({ status: 'success', data: { category: updated } });
+  });
+
+  deleteCategory = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { categoryId } = req.params;
+    await this.eventService.deleteTicketCategory(String(categoryId));
+    res.status(200).json({ status: 'success', message: 'Category deleted successfully' });
+  });
 }

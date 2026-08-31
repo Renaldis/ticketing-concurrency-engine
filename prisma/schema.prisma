@@ -37,14 +37,15 @@ model User {
 
 
 model Event {
-  id    String @id @default(uuid())
-  title String
+  id          String   @id @default(uuid())
+  slug        String?  @unique
+  title       String
   description String?
-  location String
-  date DateTime
-  imageUrl        String? 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  location    String
+  date        DateTime
+  imageUrl    String? 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   ticketCategories TicketCategory[]
   orders Order[]
 

@@ -34,7 +34,7 @@ export const createEventSchema = z.object({
 
 export const updateEventSchema = z.object({
   params: z.object({
-    id: z.string().uuid('Invalid event ID format'),
+    id: z.string().min(1, 'Event identifier is required'),
   }),
   body: z.object({
     title: z.string().min(3).optional(),

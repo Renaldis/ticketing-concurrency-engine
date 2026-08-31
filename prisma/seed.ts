@@ -40,23 +40,46 @@ async function main() {
   console.log(`Created admin: ${admin.name} (${admin.email})`);
 
   // 3. Buat Event dummy
-  const event = await prisma.event.create({
+  const event1 = await prisma.event.create({
     data: {
-      title: 'Konser Music Blast 2026',
-      description: 'Konser musik spektakuler tahun ini!',
-      location: 'Stadion Utama Gelora Bung Karno, Jakarta',
-      date: new Date('2026-12-25T19:00:00Z'),
+      title: 'Neon Symphony Core 2026',
+      slug: 'neon-symphony-core-2026',
+      description: '<p>Experience the ultimate fusion of electronic beats and digital art in a futuristic stadium stage.</p>',
+      location: 'The Void Arena, Jakarta',
+      date: new Date('2026-10-24T19:00:00Z'),
+      imageUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1200&auto=format&fit=crop',
     },
   });
-  console.log(`Created event: ${event.title}`);
 
-  // 4. Buat Kategori Tiket
-  // Kita buat kapasitas VIP sedikit (misal 5) agar nanti mudah menguji kondisi tiket habis / rebutan
+  const event2 = await prisma.event.create({
+    data: {
+      title: 'Jakarta Rock Live Festival',
+      slug: 'jakarta-rock-live-festival',
+      description: '<p>The biggest rock festival in Southeast Asia with international rock bands and headliners.</p>',
+      location: 'Stadion Utama Gelora Bung Karno, Jakarta',
+      date: new Date('2026-11-15T16:00:00Z'),
+      imageUrl: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=1200&auto=format&fit=crop',
+    },
+  });
+
+  const event3 = await prisma.event.create({
+    data: {
+      title: 'FutureWeb Enterprise Summit',
+      slug: 'futureweb-enterprise-summit',
+      description: '<p>Annual gathering of software engineers, cloud architects, and tech innovators.</p>',
+      location: 'Jakarta Convention Center (JCC)',
+      date: new Date('2026-12-05T09:00:00Z'),
+      imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1200&auto=format&fit=crop',
+    },
+  });
+  console.log(`Created 3 events with high-res poster images`);
+
+  // 4. Buat Kategori Tiket untuk Event 1
   const vipCategory = await prisma.ticketCategory.create({
     data: {
-      eventId: event.id,
+      eventId: event1.id,
       name: 'VIP',
-      price: 5000000.0, // Rp 5.000.000
+      price: 5000000.0,
       totalCapacity: 5,
       remainingCapacity: 5,
     },
@@ -64,23 +87,49 @@ async function main() {
 
   const cat1Category = await prisma.ticketCategory.create({
     data: {
-      eventId: event.id,
+      eventId: event1.id,
       name: 'CAT 1',
-      price: 2500000.0, // Rp 2.500.000
+      price: 2500000.0,
       totalCapacity: 50,
       remainingCapacity: 50,
     },
   });
 
-  console.log(`Created ticket category: ${vipCategory.name} (Stock: ${vipCategory.totalCapacity})`);
-  console.log(
-    `Created ticket category: ${cat1Category.name} (Stock: ${cat1Category.totalCapacity})`,
-  );
+  // Kategori Tiket untuk Event 2
+  await prisma.ticketCategory.create({
+    data: {
+      eventId: event2.id,
+      name: 'Festival Regular',
+      price: 750000.0,
+      totalCapacity: 200,
+      remainingCapacity: 200,
+    },
+  });
+  await prisma.ticketCategory.create({
+    data: {
+      eventId: event2.id,
+      name: 'VIP Moshpit',
+      price: 1800000.0,
+      totalCapacity: 40,
+      remainingCapacity: 40,
+    },
+  });
+
+  // Kategori Tiket untuk Event 3
+  await prisma.ticketCategory.create({
+    data: {
+      eventId: event3.id,
+      name: 'Conference Pass',
+      price: 1200000.0,
+      totalCapacity: 150,
+      remainingCapacity: 150,
+    },
+  });
 
   // SIMPAN ID BARU KE FILE JSON
   const seedData = {
     userId: user.id,
-    eventId: event.id,
+    eventId: event1.id,
     ticketCategoryId: vipCategory.id,
   };
 

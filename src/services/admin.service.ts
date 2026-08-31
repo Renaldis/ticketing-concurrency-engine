@@ -28,6 +28,34 @@ export class AdminService {
     };
   }
 
+  async getOverallSummary() {
+    const data = await this.orderRepo.getOverallAnalytics();
+    const overallSoldPercentage =
+      data.totalCapacity > 0
+        ? ((data.totalSold / data.totalCapacity) * 100).toFixed(1)
+        : '0';
+
+    return {
+      financials: {
+        totalRevenue: data.totalRevenue,
+        successfulOrdersCount: data.successfulOrdersCount,
+      },
+      attendance: {
+        checkedInAttendees: data.totalCheckedIn,
+      },
+      capacity: {
+        totalCapacity: data.totalCapacity,
+        totalSold: data.totalSold,
+        totalRemaining: data.totalRemaining,
+        overallSoldPercentage: `${overallSoldPercentage}%`,
+      },
+      metrics: {
+        totalEvents: data.totalEvents,
+        totalUsers: data.totalUsers,
+      },
+    };
+  }
+
   async getEventSummary(eventId: string) {
     const data = await this.orderRepo.getEventAnalytics(eventId);
     if (!data) {

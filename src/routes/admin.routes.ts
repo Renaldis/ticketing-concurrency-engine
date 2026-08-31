@@ -15,6 +15,7 @@ const adminController = new AdminController(adminService);
 // Global Guard: Khusus Role ADMIN
 router.use(authenticateToken as any, authorizeRoles('ADMIN') as any);
 
+router.get('/admin/summary', adminController.getOverallSummary);
 router.get('/admin/orders', adminController.getAllOrders);
 router.get('/admin/events/:id/summary', adminController.getEventSummary);
 

@@ -41,4 +41,26 @@ router.delete(
   eventController.delete,
 );
 
+// --- TICKET CATEGORIES & STOCK ENDPOINTS (ADMIN ONLY) ---
+router.post(
+  '/events/:id/categories',
+  authenticateToken as any,
+  authorizeRoles('ADMIN') as any,
+  eventController.addCategory,
+);
+
+router.patch(
+  '/events/categories/:categoryId/stock',
+  authenticateToken as any,
+  authorizeRoles('ADMIN') as any,
+  eventController.adjustStock,
+);
+
+router.delete(
+  '/events/categories/:categoryId',
+  authenticateToken as any,
+  authorizeRoles('ADMIN') as any,
+  eventController.deleteCategory,
+);
+
 export default router;

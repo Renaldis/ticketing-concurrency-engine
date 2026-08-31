@@ -36,8 +36,8 @@ export class EventService {
     };
   }
 
-  async getEventById(id: string) {
-    const event = await this.eventRepo.findById(id);
+  async getEventById(idOrSlug: string) {
+    const event = await this.eventRepo.findByIdOrSlug(idOrSlug);
     if (!event) {
       throw new AppError('Event not found', 404);
     }
@@ -51,13 +51,25 @@ export class EventService {
     location: string;
     date: Date;
     imageUrl?: string;
+    slug?: string;
     categories: Array<{ name: string; price: number; capacity: number }>;
   }) {
     if (!eventData.categories || eventData.categories.length === 0) {
       throw new AppError('At least one ticket category is required to create an event', 400);
     }
+
+    const generatedSlug =
+      eventData.slug ||
+      eventData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '') +
+        '-' +
+        Date.now().toString().slice(-4);
+
     const newEvent = await this.eventRepo.create({
       title: eventData.title,
+      slug: generatedSlug,
       description: eventData.description,
       location: eventData.location,
       date: eventData.date,
@@ -67,7 +79,7 @@ export class EventService {
           name: cat.name,
           price: cat.price,
           totalCapacity: cat.capacity,
-          remainingCapacity: cat.capacity, // Kapasitas sisa disamakan dengan kapasitas awal
+          remainingCapacity: cat.capacity,
         })),
       },
     });
@@ -84,5 +96,26 @@ export class EventService {
     const existing = await this.eventRepo.findById(id);
     if (!existing) throw new AppError('Event not found', 404);
     return this.eventRepo.delete(id);
+  }
+
+  async addTicketCategory(
+    eventId: string,
+    data: { name: string; price: number; capacity: number },
+  ) {
+    const existing = await this.eventRepo.findById(eventId);
+    if (!existing) throw new AppError('Event not found', 404);
+    return this.eventRepo.addCategory(eventId, data);
+  }
+
+  async adjustCategoryStock(categoryId: string, delta: number) {
+    try {
+      return await this.eventRepo.updateCategoryStock(categoryId, delta);
+    } catch (err: any) {
+      throw new AppError(err.message || 'Failed to adjust stock', 400);
+    }
+  }
+
+  async deleteTicketCategory(categoryId: string) {
+    return this.eventRepo.deleteCategory(categoryId);
   }
 }

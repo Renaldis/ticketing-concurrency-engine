@@ -42,13 +42,20 @@ export class EventRepository {
     return { events, totalCount };
   }
 
-  async findById(id: string) {
-    return prisma.event.findUnique({
-      where: { id },
+  async findByIdOrSlug(identifier: string) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(identifier);
+    return prisma.event.findFirst({
+      where: isUuid
+        ? { OR: [{ id: identifier }, { slug: identifier }] }
+        : { slug: identifier },
       include: {
         ticketCategories: true,
       },
     });
+  }
+
+  async findById(id: string) {
+    return this.findByIdOrSlug(id);
   }
 
   async create(data: Prisma.EventCreateInput) {
@@ -70,6 +77,52 @@ export class EventRepository {
   async delete(id: string) {
     return prisma.event.delete({
       where: { id },
+    });
+  }
+
+  // --- TICKET CATEGORY & STOCK MANAGEMENT ---
+  async addCategory(eventId: string, data: { name: string; price: number; capacity: number }) {
+    return prisma.ticketCategory.create({
+      data: {
+        eventId,
+        name: data.name,
+        price: data.price,
+        totalCapacity: data.capacity,
+        remainingCapacity: data.capacity,
+      },
+    });
+  }
+
+  async updateCategoryStock(
+    categoryId: string,
+    delta: number, // Positif: tambah stok, Negatif: kurangi stok
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const cat = await tx.ticketCategory.findUnique({
+        where: { id: categoryId },
+      });
+      if (!cat) throw new Error('Category not found');
+
+      const newRemaining = cat.remainingCapacity + delta;
+      const newTotal = cat.totalCapacity + delta;
+
+      if (newRemaining < 0 || newTotal < 0) {
+        throw new Error('Stock reduction exceeds available remaining capacity');
+      }
+
+      return tx.ticketCategory.update({
+        where: { id: categoryId },
+        data: {
+          remainingCapacity: newRemaining,
+          totalCapacity: newTotal,
+        },
+      });
+    });
+  }
+
+  async deleteCategory(categoryId: string) {
+    return prisma.ticketCategory.delete({
+      where: { id: categoryId },
     });
   }
 }

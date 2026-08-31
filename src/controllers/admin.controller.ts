@@ -25,6 +25,14 @@ export class AdminController {
     });
   });
 
+  getOverallSummary = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const summary = await this.adminService.getOverallSummary();
+    res.status(200).json({
+      status: 'success',
+      data: { summary },
+    });
+  });
+
   getEventSummary = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     const summary = await this.adminService.getEventSummary(String(id));
