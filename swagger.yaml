@@ -145,6 +145,139 @@ paths:
                     type: string
                     example: Invalid email or password
 
+  /auth/me:
+    get:
+      summary: Mendapatkan Data Profil User yang Sedang Login
+      security:
+        - BearerAuth: []
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: Profil berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+                          name:
+                            type: string
+                          role:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+        "401":
+          description: Unauthorized / Token tidak valid
+
+  /auth/profile:
+    put:
+      summary: Memperbarui Nama / Profil User
+      security:
+        - BearerAuth: []
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: Budi Pembeli Updated
+      responses:
+        "200":
+          description: Profil berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Profile updated successfully
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+                          name:
+                            type: string
+                          role:
+                            type: string
+        "400":
+          description: Validasi nama gagal
+        "401":
+          description: Unauthorized
+
+  /auth/change-password:
+    put:
+      summary: Mengubah Password Akun User
+      security:
+        - BearerAuth: []
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  example: password123
+                newPassword:
+                  type: string
+                  minLength: 6
+                  example: newpassword456
+      responses:
+        "200":
+          description: Password berhasil diubah
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Password berhasil diubah
+        "400":
+          description: Password lama tidak sesuai atau password baru terlalu pendek
+        "401":
+          description: Unauthorized
+
   /events:
     get:
       summary: Menampilkan Daftar Event (Paginated)

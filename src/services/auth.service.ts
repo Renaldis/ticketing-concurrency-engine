@@ -56,4 +56,41 @@ export class AuthService {
       },
     };
   }
+
+  async getProfile(userId: string) {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    const { password: _password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  async updateProfile(userId: string, name: string) {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    const updated = await this.userRepo.update(userId, { name });
+    const { password: _password, ...userWithoutPassword } = updated;
+    return userWithoutPassword;
+  }
+
+  async changePassword(userId: string, currentPass: string, newPass: string) {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    const isMatch = await bcrypt.compare(currentPass, user.password);
+    if (!isMatch) {
+      throw new AppError('Password lama tidak sesuai', 400);
+    }
+
+    const hashedPassword = await bcrypt.hash(newPass, 10);
+    await this.userRepo.update(userId, { password: hashedPassword });
+
+    return { message: 'Password berhasil diubah' };
+  }
 }
