@@ -47,6 +47,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Sync Production .env from Runner Root
+        run: |
+          if [ -f "../../.env" ]; then
+            cp ../../.env .env
+            echo "Environment file synced from runner root."
+          fi
+
       - name: Deploy with Docker Compose
         run: |
           echo "🚀 [Deploy]: Pulling latest changes & building Docker containers..."
