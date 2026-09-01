@@ -49,7 +49,7 @@ export class CheckoutService {
     const delayMs = ttlMinutes * 60 * 1000;
 
     // Operasi dikemas dalam transaksi DB ACID tanpa butuh Redis Lock
-    return await prisma.$transaction(async (tx) => {
+    const checkoutResult = await prisma.$transaction(async (tx) => {
       // 1. Ambil data kategori tiket untuk mengetahui harga & validasi keberadaan
       const category = await tx.ticketCategory.findUnique({
         where: { id: ticketCategoryId },
@@ -149,14 +149,18 @@ export class CheckoutService {
         );
       }
 
-      // Trigger realtime broadcast sisa kuota tiket
-      RealtimeBroadcaster.broadcastEventQuota(eventId).catch(() => {});
-
       return {
         order,
         ticketLeft: updatedCategory?.remainingCapacity ?? 0,
         ttlMinutes,
       };
     });
+
+    // 7. Trigger realtime broadcast SETELAH transaksi database 100% COMMIT
+    RealtimeBroadcaster.broadcastEventQuota(eventId).catch((e) => {
+      console.error('[CheckoutService]: Failed to broadcast quota update:', e);
+    });
+
+    return checkoutResult;
   }
 }

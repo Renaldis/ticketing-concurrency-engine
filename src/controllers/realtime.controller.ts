@@ -29,16 +29,27 @@ function initRedisSubscriber() {
     },
   );
 
+  // Inisialisasi listener Redis Pub/Sub sekali di startup
   redisSubscriber.on('message', (channel, message) => {
     try {
       const data = JSON.parse(message);
 
       if (channel === 'event:quota_updated') {
-        const { eventId, categories } = data;
-        const clients = eventClients.get(eventId);
-        if (clients && clients.size > 0) {
-          const payload = `data: ${JSON.stringify({ type: 'QUOTA_UPDATE', eventId, categories })}\n\n`;
-          clients.forEach((client) => client.write(payload));
+        const { eventId, categories, slug } = data;
+        const payload = `data: ${JSON.stringify({ type: 'QUOTA_UPDATE', eventId, categories })}\n\n`;
+
+        // Kirim ke subscriber yang terdaftar via eventId (UUID)
+        const clientsByUuid = eventClients.get(eventId);
+        if (clientsByUuid && clientsByUuid.size > 0) {
+          clientsByUuid.forEach((client) => client.write(payload));
+        }
+
+        // Kirim juga ke subscriber yang terdaftar via slug
+        if (slug) {
+          const clientsBySlug = eventClients.get(slug);
+          if (clientsBySlug && clientsBySlug.size > 0) {
+            clientsBySlug.forEach((client) => client.write(payload));
+          }
         }
       }
 
@@ -90,10 +101,12 @@ export class RealtimeController {
       }
     }
 
-    // Set Header Server-Sent Events
+    // Set Header Server-Sent Events dengan Proteksi Anti-Buffering Nginx & Proxy
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Content-Encoding', 'none');
     res.flushHeaders?.();
 
     // Daftarkan client ke pool berdasar UUID konsisten dan identifier asli (Slug)

@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { createMidtransSnapTransaction, getMidtransTransactionStatus } from '../utils/midtrans.js';
 import prisma from '../config/prisma.js';
 import redis from '../config/redis.js';
+import { RealtimeBroadcaster } from '../utils/realtime-broadcaster.js';
 
 export class OrderService {
   constructor(private orderRepo: OrderRepository) {}
@@ -76,7 +77,9 @@ export class OrderService {
 
   // --- MANUAL CANCEL ORDER (USER MEMBATALKAN PESANAN SECARA MANUAL) ---
   async cancelUserOrder(orderId: string, userId: string) {
-    return prisma.$transaction(async (tx) => {
+    let targetEventId: string | null = null;
+
+    const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
         where: { id: orderId, userId },
         include: { orderItems: true },
@@ -89,6 +92,8 @@ export class OrderService {
       if (order.status !== 'PENDING') {
         throw new AppError(`Cannot cancel order with status ${order.status}`, 400);
       }
+
+      targetEventId = order.eventId;
 
       // Update order status ke CANCELLED & transaction ke FAILED
       await tx.order.update({
@@ -113,6 +118,18 @@ export class OrderService {
 
       return { message: 'Order successfully cancelled and tickets restocked' };
     });
+
+    // Broadcast pengembalian kuota & perubahan status SETELAH DB transaksi COMMIT
+    if (targetEventId) {
+      RealtimeBroadcaster.broadcastEventQuota(targetEventId).catch((e) => {
+        console.error('[cancelUserOrder Realtime Error]:', e);
+      });
+    }
+    RealtimeBroadcaster.broadcastOrderStatus(orderId, 'CANCELLED').catch((e) => {
+      console.error('[cancelUserOrder Realtime Status Error]:', e);
+    });
+
+    return result;
   }
 
   async syncOrderStatus(orderId: string, userId: string) {

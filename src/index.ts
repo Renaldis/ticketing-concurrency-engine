@@ -45,18 +45,9 @@ const swaggerDocument = YAML.parse(swaggerFile);
 // Daftarkan route Swagger UI di /api-docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// Registrasi Route API
-app.use('/api', checkoutRoutes);
-app.use('/api', webhookRoutes);
-app.use('/api', authRoutes);
-app.use('/api', eventRoutes);
-app.use('/api', orderRoutes);
-app.use('/api', ticketRoutes);
-app.use('/api', adminRoutes);
-app.use('/api', realtimeRoutes);
-
 import redis from './config/redis.js';
 
+app.use('/api', realtimeRoutes);
 // Endpoint publik untuk membaca konfigurasi persentase fee aktif
 app.get('/api/settings/fee', async (req: Request, res: Response) => {
   try {
@@ -73,6 +64,15 @@ app.get('/health', (req: Request, res: Response) => {
     message: 'Ticketing Engine API is healthy',
   });
 });
+
+// Registrasi Route API
+app.use('/api', checkoutRoutes);
+app.use('/api', webhookRoutes);
+app.use('/api', authRoutes);
+app.use('/api', eventRoutes);
+app.use('/api', orderRoutes);
+app.use('/api', ticketRoutes);
+app.use('/api', adminRoutes);
 
 // WAJIB DI LEVEL TERBAWAH: Pasang Global Error Middleware
 // Ini menangkap semua error yang dilempar dari controller kita!

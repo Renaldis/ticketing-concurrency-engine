@@ -1,6 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { queueConnection } from '../config/queue.js';
 import prisma from '../config/prisma.js';
+import { RealtimeBroadcaster } from '../utils/realtime-broadcaster.js';
 
 interface CancelOrderJobData {
   orderId: string;
@@ -11,6 +12,8 @@ export const orderExpirationWorker = new Worker<CancelOrderJobData>(
   async (job: Job<CancelOrderJobData>) => {
     const { orderId } = job.data;
     console.log(`[worker]: Memulai pengecekan kedaluwarsa untuk Order ID: ${orderId}`);
+
+    let targetEventId: string | null = null;
 
     // Jalankan pengecekan di dalam database transaksi untuk keamanan
     await prisma.$transaction(async (tx) => {
@@ -28,6 +31,7 @@ export const orderExpirationWorker = new Worker<CancelOrderJobData>(
       // 2. Batalkan order hanya jika statusnya masih PENDING (belum dibayar)
       if (order.status === 'PENDING') {
         console.log(`[worker]: Order ${orderId} belum dibayar. Membatalkan order...`);
+        targetEventId = order.eventId;
 
         // Ganti status Order menjadi CANCELLED
         await tx.order.update({
@@ -61,6 +65,16 @@ export const orderExpirationWorker = new Worker<CancelOrderJobData>(
         );
       }
     });
+
+    // Broadcast kuota tiket & order status SETELAH pembatalan worker berhasil di-commit
+    if (targetEventId) {
+      RealtimeBroadcaster.broadcastEventQuota(targetEventId).catch((e) => {
+        console.error('[worker Realtime Quota Error]:', e);
+      });
+      RealtimeBroadcaster.broadcastOrderStatus(orderId, 'CANCELLED').catch((e) => {
+        console.error('[worker Realtime Status Error]:', e);
+      });
+    }
   },
   {
     connection: queueConnection,

@@ -5,18 +5,25 @@ export class RealtimeBroadcaster {
   // Broadcast perubahan sisa kuota tiket event ke seluruh subscriber SSE
   static async broadcastEventQuota(eventId: string): Promise<void> {
     try {
-      const categories = await prisma.ticketCategory.findMany({
-        where: { eventId },
-        select: {
-          id: true,
-          name: true,
-          remainingCapacity: true,
-          totalCapacity: true,
-        },
-      });
+      const [categories, event] = await Promise.all([
+        prisma.ticketCategory.findMany({
+          where: { eventId },
+          select: {
+            id: true,
+            name: true,
+            remainingCapacity: true,
+            totalCapacity: true,
+          },
+        }),
+        prisma.event.findUnique({
+          where: { id: eventId },
+          select: { slug: true },
+        }),
+      ]);
 
       const payload = JSON.stringify({
         eventId,
+        slug: event?.slug || null,
         categories,
       });
 
