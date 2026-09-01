@@ -3,9 +3,10 @@ import { redisSubscriber } from '../config/redis.js';
 import prisma from '../config/prisma.js';
 
 // Map untuk mengelola koneksi SSE aktif
-// Key: eventId, Value: Set Response stream
+// Key: eventId (UUID), Value: Set Response stream
 const eventClients = new Map<string, Set<Response>>();
 const orderClients = new Map<string, Set<Response>>();
+const adminClients = new Set<Response>();
 
 // Inisialisasi listener Redis Pub/Sub sekali di startup
 let isSubscribed = false;
@@ -13,13 +14,20 @@ function initRedisSubscriber() {
   if (isSubscribed) return;
   isSubscribed = true;
 
-  redisSubscriber.subscribe('event:quota_updated', 'order:status_updated', (err) => {
-    if (err) {
-      console.error('[SSE Redis PubSub Error]:', err);
-    } else {
-      console.log('[SSE]: Subscribed to event:quota_updated & order:status_updated');
-    }
-  });
+  redisSubscriber.subscribe(
+    'event:quota_updated',
+    'order:status_updated',
+    'admin:telemetry_updated',
+    (err) => {
+      if (err) {
+        console.error('[SSE Redis PubSub Error]:', err);
+      } else {
+        console.log(
+          '[SSE]: Subscribed to event:quota_updated, order:status_updated & admin:telemetry_updated',
+        );
+      }
+    },
+  );
 
   redisSubscriber.on('message', (channel, message) => {
     try {
@@ -42,6 +50,13 @@ function initRedisSubscriber() {
           clients.forEach((client) => client.write(payload));
         }
       }
+
+      if (channel === 'admin:telemetry_updated') {
+        if (adminClients.size > 0) {
+          const payload = `data: ${JSON.stringify({ type: 'ADMIN_TELEMETRY_SYNC', ...data })}\n\n`;
+          adminClients.forEach((client) => client.write(payload));
+        }
+      }
     } catch (e) {
       console.error('[SSE Message Parse Error]:', e);
     }
@@ -53,9 +68,27 @@ export class RealtimeController {
     initRedisSubscriber();
   }
 
-  // SSE Stream untuk Live Kuota Tiket Event
+  // SSE Stream untuk Live Kuota Tiket Event (Mendukung ID UUID maupun Slug)
   streamEventQuota = async (req: Request, res: Response): Promise<void> => {
-    const eventId = String(req.params.id);
+    const identifier = String(req.params.id);
+    let eventId = identifier;
+
+    // Resolve UUID jika client mengirim slug
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(identifier);
+    if (!isUuid) {
+      try {
+        const found = await prisma.event.findFirst({
+          where: { slug: identifier },
+          select: { id: true },
+        });
+        if (found) {
+          eventId = found.id;
+        }
+      } catch (err) {
+        console.error('[SSE Resolve Event Slug Error]:', err);
+      }
+    }
 
     // Set Header Server-Sent Events
     res.setHeader('Content-Type', 'text/event-stream');
@@ -63,7 +96,7 @@ export class RealtimeController {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
-    // Daftarkan client ke pool
+    // Daftarkan client ke pool berdasar UUID konsisten
     if (!eventClients.has(eventId)) {
       eventClients.set(eventId, new Set());
     }
@@ -133,6 +166,26 @@ export class RealtimeController {
       if (orderClients.get(orderId)?.size === 0) {
         orderClients.delete(orderId);
       }
+    });
+  };
+
+  // SSE Stream untuk Admin Live Dashboard & Telemetri
+  streamAdminTelemetry = async (req: Request, res: Response): Promise<void> => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    adminClients.add(res);
+    res.write(`data: ${JSON.stringify({ type: 'ADMIN_CONNECTED' })}\n\n`);
+
+    const heartbeat = setInterval(() => {
+      res.write(': heartbeat\n\n');
+    }, 25000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      adminClients.delete(res);
     });
   };
 }

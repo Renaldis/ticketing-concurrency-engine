@@ -90,17 +90,34 @@ export class EventController {
     });
   });
 
-  update = async (req: Request, res: Response): Promise<void> => {
+  update = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
+    const { title, description, category, location, date } = req.body;
 
-    const updateData = req.body;
+    const updatePayload: any = {};
+    if (title) updatePayload.title = title;
+    if (description !== undefined) updatePayload.description = description;
+    if (category) updatePayload.category = category;
+    if (location) updatePayload.location = location;
+    if (date) updatePayload.date = new Date(date);
+
     if (req.file) {
-      // jika upload gambar baru
-      updateData.imageUrl = (req.file as any).location || req.file.filename;
+      const isR2Configured =
+        process.env.R2_ENDPOINT && !process.env.R2_ENDPOINT.includes('your-cloudflare-account-id');
+      if (isR2Configured) {
+        updatePayload.imageUrl = await uploadToR2(
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype,
+        );
+      } else {
+        updatePayload.imageUrl = (req.file as any).location || req.file.filename;
+      }
     }
-    const updatedEvent = await this.eventService.updateEvent(String(id), updateData);
+
+    const updatedEvent = await this.eventService.updateEvent(String(id), updatePayload);
     res.status(200).json({ status: 'success', data: updatedEvent });
-  };
+  });
 
   delete = async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;

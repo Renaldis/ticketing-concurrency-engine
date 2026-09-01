@@ -21,12 +21,14 @@ export class RealtimeBroadcaster {
       });
 
       await redisPublisher.publish('event:quota_updated', payload);
+      // Trigger update ke admin dashboard juga
+      await redisPublisher.publish('admin:telemetry_updated', JSON.stringify({ eventId }));
     } catch (err) {
       console.error('[RealtimeBroadcaster Quota Error]:', err);
     }
   }
 
-  // Broadcast perubahan status pesanan (PAID / CANCELLED) ke browser user
+  // Broadcast perubahan status pesanan (PAID / CANCELLED) ke browser user & admin
   static async broadcastOrderStatus(orderId: string, status: string): Promise<void> {
     try {
       const payload = JSON.stringify({
@@ -35,6 +37,7 @@ export class RealtimeBroadcaster {
       });
 
       await redisPublisher.publish('order:status_updated', payload);
+      await redisPublisher.publish('admin:telemetry_updated', JSON.stringify({ orderId, status }));
     } catch (err) {
       console.error('[RealtimeBroadcaster Order Error]:', err);
     }
