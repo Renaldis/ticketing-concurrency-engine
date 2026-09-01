@@ -267,9 +267,9 @@ export class OrderRepository {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Ringkasan statistik peserta untuk event ini
-    const [totalOrders, checkedInCount, paidCount, cancelledCount] = await Promise.all([
-      prisma.order.count({ where: { eventId } }),
+    // Ringkasan statistik peserta untuk event ini (hanya order PAID & CHECKED_IN yang dihitung sebagai Tiket Terjual)
+    const [totalSoldOrders, checkedInCount, paidCount, cancelledCount] = await Promise.all([
+      prisma.order.count({ where: { eventId, status: { in: ['PAID', 'CHECKED_IN'] } } }),
       prisma.order.count({ where: { eventId, status: 'CHECKED_IN' } }),
       prisma.order.count({ where: { eventId, status: 'PAID' } }),
       prisma.order.count({ where: { eventId, status: 'CANCELLED' } }),
@@ -278,7 +278,7 @@ export class OrderRepository {
     return {
       event,
       stats: {
-        totalOrders,
+        totalOrders: totalSoldOrders,
         checkedInCount,
         paidCount,
         cancelledCount,
