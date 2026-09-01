@@ -11,9 +11,15 @@ export class EventRepository {
       category?: string;
       sortBy?: string;
       sortOrder?: 'asc' | 'desc';
+      upcomingOnly?: boolean;
     },
   ): Promise<{ events: Event[]; totalCount: number }> {
     const where: Prisma.EventWhereInput = {};
+
+    // Filter tanggal acara: Default hanya tampilkan yang belum lewat untuk publik
+    if (options.upcomingOnly) {
+      where.date = { gte: new Date() };
+    }
 
     if (options.search) {
       where.OR = [

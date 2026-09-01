@@ -12,6 +12,7 @@ export class EventService {
     category?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    upcomingOnly?: boolean;
   }) {
     const page = params.page && params.page > 0 ? params.page : 1;
     const limit = params.limit && params.limit > 0 ? params.limit : 10;
@@ -24,6 +25,7 @@ export class EventService {
       category: params.category,
       sortBy: params.sortBy,
       sortOrder: params.sortOrder,
+      upcomingOnly: params.upcomingOnly !== false, // Default true jika tidak dioverride
     });
     const totalPages = Math.ceil(totalCount / limit);
 

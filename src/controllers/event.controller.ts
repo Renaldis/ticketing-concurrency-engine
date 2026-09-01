@@ -15,6 +15,7 @@ export class EventController {
     const category = req.query.category as string;
     const sortBy = req.query.sortBy as string;
     const sortOrder = req.query.sortOrder as 'asc' | 'desc';
+    const upcomingOnly = req.query.upcomingOnly !== 'false';
 
     const result = await this.eventService.getAllEvents({
       page,
@@ -24,6 +25,7 @@ export class EventController {
       category,
       sortBy,
       sortOrder,
+      upcomingOnly,
     });
 
     res.status(200).json({

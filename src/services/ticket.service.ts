@@ -13,7 +13,22 @@ export class TicketService {
       orderId = qrData;
     }
 
-    // 2. Lakukan ATOMIC UPDATE hanya jika status order saat ini adalah 'PAID'
+    // 2. Cek apakah tanggal acara sudah lewat lebih dari 24 jam setelah acara
+    const checkOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { event: true },
+    });
+
+    if (!checkOrder) {
+      throw new AppError('Invalid Ticket: Order not found', 404);
+    }
+
+    const eventEndTime = new Date(checkOrder.event.date.getTime() + 24 * 60 * 60 * 1000);
+    if (new Date() > eventEndTime) {
+      throw new AppError('Ticket EXPIRED: The scheduled event has already ended.', 400);
+    }
+
+    // 3. Lakukan ATOMIC UPDATE hanya jika status order saat ini adalah 'PAID'
     const now = new Date();
     const updateResult = await prisma.order.updateMany({
       where: {
