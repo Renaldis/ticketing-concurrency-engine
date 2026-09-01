@@ -3,6 +3,7 @@ import prisma from '../config/prisma.js';
 import redis from '../config/redis.js';
 import { orderExpirationQueue } from '../config/queue.js';
 import { AppError } from '../utils/app-error.js';
+import { RealtimeBroadcaster } from '../utils/realtime-broadcaster.js';
 
 // Definisikan tipe untuk response sukses checkout
 interface CheckoutResponse {
@@ -115,6 +116,9 @@ export class CheckoutService {
         `[CheckoutService]: Enqueuing expiration job for Order ${order.id} with ${ttlMinutes} mins delay`,
       );
       await orderExpirationQueue.add('cancel-order', { orderId: order.id }, { delay: delayMs });
+
+      // Trigger realtime broadcast sisa kuota tiket
+      RealtimeBroadcaster.broadcastEventQuota(eventId).catch(() => {});
 
       return {
         order,

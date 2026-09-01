@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import prisma from '../config/prisma.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { RealtimeBroadcaster } from '../utils/realtime-broadcaster.js';
 
 export class WebhookController {
   handlePaymentWebhook = asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -151,6 +152,10 @@ export class WebhookController {
             where: { orderId: orderId },
             data: { status: 'SUCCESS' },
           });
+
+          // Trigger realtime updates
+          RealtimeBroadcaster.broadcastOrderStatus(orderId, 'PAID').catch(() => {});
+          RealtimeBroadcaster.broadcastEventQuota(order.eventId).catch(() => {});
         } else if (status === 'expire' || status === 'cancel') {
           if (order.status === 'CANCELLED') {
             console.log(
@@ -182,6 +187,10 @@ export class WebhookController {
               `[webhook]: Merilis kembali ${item.quantity} tiket untuk kategori: ${item.ticketCategoryId}`,
             );
           }
+
+          // Trigger realtime updates
+          RealtimeBroadcaster.broadcastOrderStatus(orderId, 'CANCELLED').catch(() => {});
+          RealtimeBroadcaster.broadcastEventQuota(order.eventId).catch(() => {});
         }
       });
 

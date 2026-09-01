@@ -14,6 +14,7 @@ import eventRoutes from './routes/event.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import realtimeRoutes from './routes/realtime.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 
 // Nyalakan worker pemantau antrean BullMQ
@@ -52,6 +53,7 @@ app.use('/api', eventRoutes);
 app.use('/api', orderRoutes);
 app.use('/api', ticketRoutes);
 app.use('/api', adminRoutes);
+app.use('/api', realtimeRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({
