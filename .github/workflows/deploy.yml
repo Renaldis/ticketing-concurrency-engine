@@ -1,0 +1,65 @@
+name: Backend CI/CD Pipeline (Self-Hosted Mini PC)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # JOB 1: Continuous Integration (Lint, Typecheck & Test Build)
+  ci-test-and-build:
+    name: Run CI Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Verify TypeScript Compilation
+        run: npm run build
+
+  # JOB 2: Continuous Deployment (Eksekusi di VM Mini PC via Self-Hosted Runner)
+  deploy-production:
+    name: Deploy to Mini PC VM
+    needs: ci-test-and-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy with Docker Compose
+        run: |
+          echo "🚀 [Deploy]: Pulling latest changes & building Docker containers..."
+          docker compose down || true
+          docker compose build --no-cache app
+          docker compose up -d
+
+      - name: Run Prisma Database Migrations
+        run: |
+          echo "🔄 [Database]: Applying Prisma migrations inside container..."
+          docker compose exec -T app npx prisma migrate deploy || true
+
+      - name: Prune Dangling Docker Images
+        run: |
+          echo "🧹 [Cleanup]: Removing unused docker images..."
+          docker image prune -f
