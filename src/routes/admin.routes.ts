@@ -23,4 +23,8 @@ router.put('/admin/settings/expiration', adminController.updateExpirationTtl);
 router.get('/admin/settings/fee', adminController.getPlatformFee);
 router.put('/admin/settings/fee', adminController.updatePlatformFee);
 
+router.get('/admin/users', adminController.getUsers);
+router.get('/admin/users/:userId/audit', adminController.getUserAudit);
+router.get('/admin/events/:eventId/attendees', adminController.getEventAttendees);
+
 export default router;

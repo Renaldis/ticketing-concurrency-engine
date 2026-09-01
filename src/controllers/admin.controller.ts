@@ -86,4 +86,37 @@ export class AdminController {
       data: { feePercent },
     });
   });
+
+  getUsers = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    const result = await this.adminService.getUsers({ page, limit, search });
+    res.status(200).json({
+      status: 'success',
+      data: result,
+    });
+  });
+
+  getUserAudit = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { userId } = req.params;
+    const data = await this.adminService.getUserAudit(String(userId));
+    res.status(200).json({
+      status: 'success',
+      data,
+    });
+  });
+
+  getEventAttendees = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { eventId } = req.params;
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
+
+    const data = await this.adminService.getEventAttendees(String(eventId), search, status);
+    res.status(200).json({
+      status: 'success',
+      data,
+    });
+  });
 }

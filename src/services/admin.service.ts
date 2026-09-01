@@ -109,4 +109,39 @@ export class AdminService {
       categories: categoriesBreakdown,
     };
   }
+
+  async getUsers(params: { page: number; limit: number; search?: string }) {
+    const skip = (params.page - 1) * params.limit;
+    const { users, totalCount } = await this.orderRepo.getUsersAdmin(
+      skip,
+      params.limit,
+      params.search,
+    );
+
+    return {
+      users,
+      pagination: {
+        totalCount,
+        totalPages: Math.ceil(totalCount / params.limit),
+        currentPage: params.page,
+        limit: params.limit,
+      },
+    };
+  }
+
+  async getUserAudit(userId: string) {
+    const data = await this.orderRepo.getUserAuditDetail(userId);
+    if (!data) {
+      throw new AppError('User not found', 404);
+    }
+    return data;
+  }
+
+  async getEventAttendees(eventId: string, search?: string, status?: string) {
+    const data = await this.orderRepo.getEventAttendeesAdmin(eventId, search, status);
+    if (!data) {
+      throw new AppError('Event not found', 404);
+    }
+    return data;
+  }
 }

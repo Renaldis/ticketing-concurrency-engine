@@ -156,4 +156,134 @@ export class OrderRepository {
       checkedInCount: checkedInOrdersCount,
     };
   }
+
+  async getUsersAdmin(skip: number, take: number, search?: string) {
+    const where: Prisma.UserWhereInput = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const [users, totalCount] = await prisma.$transaction([
+      prisma.user.findMany({
+        where,
+        skip,
+        take,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true,
+          _count: {
+            select: { orders: true },
+          },
+          orders: {
+            select: {
+              id: true,
+              status: true,
+              totalAmount: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return { users, totalCount };
+  }
+
+  async getUserAuditDetail(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) return null;
+
+    const orders = await prisma.order.findMany({
+      where: { userId },
+      include: {
+        event: { select: { id: true, title: true, location: true, date: true } },
+        orderItems: {
+          include: {
+            ticketCategory: { select: { name: true, price: true } },
+          },
+        },
+        transaction: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { user, orders };
+  }
+
+  async getEventAttendeesAdmin(eventId: string, search?: string, statusFilter?: string) {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, title: true, location: true, date: true },
+    });
+
+    if (!event) return null;
+
+    const where: Prisma.OrderWhereInput = { eventId };
+
+    if (statusFilter && statusFilter !== 'ALL') {
+      where.status = statusFilter as OrderStatus;
+    }
+
+    if (search) {
+      where.user = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        orderItems: {
+          include: {
+            ticketCategory: { select: { id: true, name: true, price: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Ringkasan statistik peserta untuk event ini
+    const [totalOrders, checkedInCount, paidCount, cancelledCount] = await Promise.all([
+      prisma.order.count({ where: { eventId } }),
+      prisma.order.count({ where: { eventId, status: 'CHECKED_IN' } }),
+      prisma.order.count({ where: { eventId, status: 'PAID' } }),
+      prisma.order.count({ where: { eventId, status: 'CANCELLED' } }),
+    ]);
+
+    return {
+      event,
+      stats: {
+        totalOrders,
+        checkedInCount,
+        paidCount,
+        cancelledCount,
+      },
+      attendees: orders,
+    };
+  }
 }

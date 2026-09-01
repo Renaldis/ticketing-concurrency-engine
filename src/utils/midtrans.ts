@@ -28,6 +28,7 @@ export async function createMidtransSnapTransaction(options: {
   const authHeader = 'Basic ' + Buffer.from(serverKey + ':').toString('base64');
 
   const expiryDuration = options.expiryMinutes || 15;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
   const payload: any = {
     transaction_details: {
@@ -40,6 +41,9 @@ export async function createMidtransSnapTransaction(options: {
     expiry: {
       unit: 'minute',
       duration: expiryDuration,
+    },
+    callbacks: {
+      finish: `${frontendUrl}/my-orders?order_id=${options.orderId}`,
     },
     customer_details: options.customerDetails
       ? {
