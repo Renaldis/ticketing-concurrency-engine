@@ -65,4 +65,25 @@ export class AdminController {
       data: { ttlMinutes },
     });
   });
+
+  getPlatformFee = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const feePercent = (await redis.get('system:platform_fee_percent')) || '2';
+    res.status(200).json({
+      status: 'success',
+      data: { feePercent: parseFloat(feePercent) },
+    });
+  });
+
+  updatePlatformFee = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { feePercent } = req.body;
+    if (feePercent == null || typeof feePercent !== 'number' || feePercent < 0 || feePercent > 20) {
+      throw new AppError('feePercent must be a number between 0 and 20%', 400);
+    }
+    await redis.set('system:platform_fee_percent', feePercent.toString());
+    res.status(200).json({
+      status: 'success',
+      message: `Platform fee successfully updated to ${feePercent}%`,
+      data: { feePercent },
+    });
+  });
 }

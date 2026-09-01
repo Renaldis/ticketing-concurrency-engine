@@ -29,14 +29,21 @@ export class CheckoutService {
   ): Promise<CheckoutResponse> {
     // Ambil konfigurasi TTL kedaluwarsa dinamis dari Redis (Default 15 menit jika belum diset)
     let ttlMinutes = 15;
+    let feePercent = 2; // Default 2%
     try {
-      const savedTtl = await redis.get('system:order_expiration_ttl_minutes');
+      const [savedTtl, savedFee] = await Promise.all([
+        redis.get('system:order_expiration_ttl_minutes'),
+        redis.get('system:platform_fee_percent'),
+      ]);
       if (savedTtl) {
         ttlMinutes = Math.max(1, parseInt(savedTtl, 10));
       }
+      if (savedFee) {
+        feePercent = Math.max(0, parseFloat(savedFee));
+      }
     } catch (e) {
       console.warn(
-        '[CheckoutService]: Could not read dynamic TTL from Redis. Using default 15 mins.',
+        '[CheckoutService]: Could not read dynamic settings from Redis. Using defaults.',
       );
     }
     const delayMs = ttlMinutes * 60 * 1000;
@@ -80,15 +87,33 @@ export class CheckoutService {
       });
 
       const price = category.price;
-      const totalAmount = new Prisma.Decimal(price).mul(quantity);
+      const rawSubtotal = new Prisma.Decimal(price).mul(quantity);
 
-      // 4. Buat Order & OrderItems
+      // Cek apakah tiket gratis (Rp 0)
+      const isFree = rawSubtotal.equals(0);
+
+      // Hitung biaya platform resmi (jika berbayar)
+      let totalAmount = new Prisma.Decimal(0);
+
+      if (!isFree) {
+        const platformFee = rawSubtotal
+          .mul(feePercent)
+          .div(100)
+          .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
+        totalAmount = rawSubtotal.add(platformFee);
+      }
+
+      const orderStatus = isFree ? 'PAID' : 'PENDING';
+      const transactionStatus = isFree ? 'SUCCESS' : 'PENDING';
+      const paymentMethod = isFree ? 'FREE_REGISTRATION' : undefined;
+
+      // 4. Buat Record Order
       const order = await tx.order.create({
         data: {
           userId,
           eventId,
           totalAmount,
-          status: 'PENDING',
+          status: orderStatus,
           orderItems: {
             create: {
               ticketCategoryId,
@@ -102,20 +127,27 @@ export class CheckoutService {
         },
       });
 
-      // 5. Buat Record Transaction PENDING
+      // 5. Buat Record Transaction
       await tx.transaction.create({
         data: {
           orderId: order.id,
           amount: totalAmount,
-          status: 'PENDING',
+          status: transactionStatus,
+          paymentMethod,
         },
       });
 
-      // 6. Masukkan task penundaan kadaluarsa dinamis ke BullMQ
-      console.log(
-        `[CheckoutService]: Enqueuing expiration job for Order ${order.id} with ${ttlMinutes} mins delay`,
-      );
-      await orderExpirationQueue.add('cancel-order', { orderId: order.id }, { delay: delayMs });
+      // 6. Jika berbayar, daftarkan countdown kadaluarsa ke BullMQ. Jika gratis, skip!
+      if (!isFree) {
+        console.log(
+          `[CheckoutService]: Enqueuing expiration job for Order ${order.id} with ${ttlMinutes} mins delay`,
+        );
+        await orderExpirationQueue.add('cancel-order', { orderId: order.id }, { delay: delayMs });
+      } else {
+        console.log(
+          `[CheckoutService]: Free pass claimed for Order ${order.id}. Auto-settled to PAID.`,
+        );
+      }
 
       // Trigger realtime broadcast sisa kuota tiket
       RealtimeBroadcaster.broadcastEventQuota(eventId).catch(() => {});

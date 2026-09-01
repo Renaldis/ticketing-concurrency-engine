@@ -96,11 +96,18 @@ export class RealtimeController {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
-    // Daftarkan client ke pool berdasar UUID konsisten
+    // Daftarkan client ke pool berdasar UUID konsisten dan identifier asli (Slug)
     if (!eventClients.has(eventId)) {
       eventClients.set(eventId, new Set());
     }
     eventClients.get(eventId)!.add(res);
+
+    if (identifier !== eventId) {
+      if (!eventClients.has(identifier)) {
+        eventClients.set(identifier, new Set());
+      }
+      eventClients.get(identifier)!.add(res);
+    }
 
     // Kirim initial state kuota terkini
     try {
@@ -123,6 +130,12 @@ export class RealtimeController {
       eventClients.get(eventId)?.delete(res);
       if (eventClients.get(eventId)?.size === 0) {
         eventClients.delete(eventId);
+      }
+      if (identifier !== eventId) {
+        eventClients.get(identifier)?.delete(res);
+        if (eventClients.get(identifier)?.size === 0) {
+          eventClients.delete(identifier);
+        }
       }
     });
   };

@@ -55,6 +55,18 @@ app.use('/api', ticketRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', realtimeRoutes);
 
+import redis from './config/redis.js';
+
+// Endpoint publik untuk membaca konfigurasi persentase fee aktif
+app.get('/api/settings/fee', async (req: Request, res: Response) => {
+  try {
+    const fee = (await redis.get('system:platform_fee_percent')) || '2';
+    res.json({ status: 'success', data: { feePercent: parseFloat(fee) } });
+  } catch {
+    res.json({ status: 'success', data: { feePercent: 2 } });
+  }
+});
+
 app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',

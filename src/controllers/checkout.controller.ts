@@ -38,53 +38,58 @@ export class CheckoutController {
     const order = result.order;
 
     let payment = null;
-    const serverKey = process.env.MIDTRANS_SERVER_KEY;
-    const isMocked = !serverKey || serverKey.includes('your-midtrans-');
+    const isFree = Number(order.totalAmount) === 0;
 
-    if (!isMocked) {
-      console.log(
-        `[Checkout Controller]: Generating Midtrans Snap URL token for Order ${order.id} with ${result.ttlMinutes} mins expiry...`,
-      );
-      const snapResult = await createMidtransSnapTransaction({
-        orderId: order.id,
-        grossAmount: Number(order.totalAmount),
-        expiryMinutes: result.ttlMinutes,
-        customerDetails: {
-          name: user?.name || 'Customer',
-          email: user?.email || 'customer@example.com',
-        },
-      });
-      if (snapResult) {
+    // Jika tiket berbayar, proses token Snap Midtrans. Jika gratis, bypass!
+    if (!isFree) {
+      const serverKey = process.env.MIDTRANS_SERVER_KEY;
+      const isMocked = !serverKey || serverKey.includes('your-midtrans-');
+
+      if (!isMocked) {
+        console.log(
+          `[Checkout Controller]: Generating Midtrans Snap URL token for Order ${order.id} with amount Rp ${order.totalAmount}...`,
+        );
+        const snapResult = await createMidtransSnapTransaction({
+          orderId: order.id,
+          grossAmount: Number(order.totalAmount),
+          expiryMinutes: result.ttlMinutes,
+          customerDetails: {
+            name: user?.name || 'Customer',
+            email: user?.email || 'customer@example.com',
+          },
+        });
+        if (snapResult) {
+          payment = {
+            token: snapResult.token,
+            redirectUrl: snapResult.redirect_url,
+          };
+
+          await prisma.transaction.update({
+            where: { orderId: order.id },
+            data: {
+              snapToken: snapResult.token,
+              snapRedirectUrl: snapResult.redirect_url,
+            },
+          });
+        }
+      } else {
         payment = {
-          token: snapResult.token,
-          redirectUrl: snapResult.redirect_url,
+          token: 'mock-midtrans-snap-token-12345678',
+          redirectUrl: `https://app.sandbox.midtrans.com/snap/v2/vtweb/mock-token-12345678`,
         };
 
-        // Simpan token & redirect URL ke record transaksi agar bisa di-resume nanti
         await prisma.transaction.update({
           where: { orderId: order.id },
           data: {
-            snapToken: snapResult.token,
-            snapRedirectUrl: snapResult.redirect_url,
+            snapToken: payment.token,
+            snapRedirectUrl: payment.redirectUrl,
           },
         });
       }
     } else {
-      console.warn(
-        '[Checkout Controller]: MIDTRANS_SERVER_KEY is placeholder. Bypassing token generation.',
+      console.log(
+        `[Checkout Controller]: Free pass detected for Order ${order.id}. Skipping Midtrans.`,
       );
-      payment = {
-        token: 'mock-midtrans-snap-token-12345678',
-        redirectUrl: `https://app.sandbox.midtrans.com/snap/v2/vtweb/mock-token-12345678`,
-      };
-
-      await prisma.transaction.update({
-        where: { orderId: order.id },
-        data: {
-          snapToken: payment.token,
-          snapRedirectUrl: payment.redirectUrl,
-        },
-      });
     }
     res.status(201).json({
       message: 'Checkout successful',

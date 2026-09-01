@@ -20,5 +20,7 @@ router.get('/admin/orders', adminController.getAllOrders);
 router.get('/admin/events/:id/summary', adminController.getEventSummary);
 router.get('/admin/settings/expiration', adminController.getExpirationTtl);
 router.put('/admin/settings/expiration', adminController.updateExpirationTtl);
+router.get('/admin/settings/fee', adminController.getPlatformFee);
+router.put('/admin/settings/fee', adminController.updatePlatformFee);
 
 export default router;
