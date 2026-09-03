@@ -1,0 +1,17 @@
+services:
+  app:
+    image: ${DOCKER_IMAGE:-ghcr.io/username/ticketing-concurrency-engine:latest}
+    container_name: ticketing_backend
+    restart: always
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - internal-net
+
+networks:
+  internal-net:
+    external: true

@@ -40,8 +40,14 @@ RUN npx prisma generate
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/swagger.yaml ./swagger.yaml
 
+# Copy and set entrypoint script for auto-migration
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
 # Expose port backend
 EXPOSE 3001
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 # Start backend server
 CMD ["node", "dist/index.js"]

@@ -1,5 +1,6 @@
 services:
   app:
+    image: ${DOCKER_IMAGE:-ticketing_backend:latest}
     build:
       context: .
       dockerfile: Dockerfile
